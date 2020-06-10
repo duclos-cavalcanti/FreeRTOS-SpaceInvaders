@@ -1,0 +1,102 @@
+[
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/bunkers.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/bunkers.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/bunkers.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/creatures.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/creatures.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/creatures.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/main.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/main.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/main.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/saucer.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/saucer.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/saucer.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/ship.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/ship.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/ship.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/utilities.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/utilities.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/src/utilities.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/croutine.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/croutine.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/croutine.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/list.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/list.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/list.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/portable/GCC/Posix/port.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix/port.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix/port.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/portable/MemMang/heap_3.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/MemMang/heap_3.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/MemMang/heap_3.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/queue.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/queue.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/queue.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/tasks.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/tasks.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/tasks.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/timers.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/timers.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/timers.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Ball.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Ball.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Ball.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Draw.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Draw.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Draw.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Event.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Event.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Event.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Font.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Font.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Font.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Sound.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Sound.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Sound.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/Gfx/TUM_Utils.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Utils.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/TUM_Utils.c"
+},
+{
+  "directory": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/opponents",
+  "command": "/usr/bin/cc  -I/usr/include/SDL2 -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/Gfx/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/include -I/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/AsyncIO/AsyncIO.c.o   -c /home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/AsyncIO.c",
+  "file": "/home/duclos-cavalcanti/Documents/SpaceInvaders_ESPL/lib/AsyncIO/AsyncIO.c"
+}
+]

@@ -17,8 +17,6 @@
 
 Mix_Chunk *samples[NUM_WAVEFORMS] = { 0 };
 
-static char TUMSound_online = 0;
-
 typedef struct loaded_sample {
 	char *name;
 	Mix_Chunk *sample;
@@ -26,6 +24,8 @@ typedef struct loaded_sample {
 } loaded_sample_t;
 
 loaded_sample_t user_samples = { .name = "HEAD" };
+
+static char TUMSound_online = 0;
 
 void tumSoundExit(void)
 {
