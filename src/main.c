@@ -240,36 +240,51 @@ void vStateMachine(void *pvParameters){
             }
         }
 }
+void vDrawStaticTexts()
+{
+    char Score_1[100];   
+    char Score_2[100];   
+    char Hi_Score[100];   
+    
+    static int Score1_Width,Score2_Width,HiScoreWidth=0;
 
+    sprintf(Score_1,
+            "SCORE<1>");
+    sprintf(Score_2,
+            "SCORE<2>");
+    sprintf(Hi_Score,
+            "HI-SCORE");
+    
+    if(!tumGetTextSize((char *)Score_1,&Score1_Width, NULL)){
+                    checkDraw(tumDrawText(Score_1,
+                                            SCREEN_WIDTH*1/5-Score1_Width/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+    
+    if(!tumGetTextSize((char *)Score_2,&Score2_Width, NULL)){
+                    checkDraw(tumDrawText(Score_2,
+                                            SCREEN_WIDTH*4/5-Score2_Width/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+    if(!tumGetTextSize((char *)Hi_Score,&HiScoreWidth, NULL)){
+                    checkDraw(tumDrawText(Hi_Score,
+                                            SCREEN_WIDTH*2/4-HiScoreWidth/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+
+}
 void vMainMenu(void *pvParameters)
 {
-    char our_time_string[100];
-    static int  our_time_strings_width=0;
 
     while (1) {
         xGetButtonInput();
-        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(Q)]) { // Equiv to SDL_SCANCODE_Q
-                exit(EXIT_SUCCESS);
-            }
-            xSemaphoreGive(buttons.lock);
-        }
         xSemaphoreTake(ScreenLock,portMAX_DELAY);
         
             tumDrawClear(Black); // Clear screen
-
-
-            // Format our string into our char array
-            sprintf(our_time_string,
-                    "Testing");
-
-            if (!tumGetTextSize((char *)our_time_string,
-                                &our_time_strings_width, NULL))
-                tumDrawText(our_time_string,
-                            SCREEN_WIDTH / 2 -
-                            our_time_strings_width / 2,
-                            SCREEN_HEIGHT / 2 - DEFAULT_FONT_SIZE / 2,
-                            White);
+            vDrawStaticTexts();
             vCheckSM_Input();
             vDrawFPS();
 
@@ -278,7 +293,18 @@ void vMainMenu(void *pvParameters)
         vTaskDelay((TickType_t)20);
     }
 }
-
+void vIntroGame(void *pvParameters)
+{
+    
+    while(1){
+        xGetButtonInput();
+        xSemaphoreTake(ScreenLock,portMAX_DELAY);
+            tumDrawClear(Black);
+            vDrawFPS();    
+        xSemaphoreGive(ScreenLock);
+        vTaskDelay((TickType_t)20);
+    }
+}
 int main(int argc, char *argv[])
 {
     char *bin_folder_path = tumUtilGetBinFolderPath(argv[0]);
