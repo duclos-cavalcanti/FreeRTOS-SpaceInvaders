@@ -46,6 +46,9 @@ static TaskHandle_t StateMachine = NULL;
 
 static QueueHandle_t StateQueue = NULL;
 
+
+static image_handle_t SelectArrow = NULL;
+
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
 
@@ -280,7 +283,6 @@ void vDrawMainMenu(void)
 {
     char PlayerOptions[100];
     static int PlayerOptionsWidth=0;
-    image_handle_t SelectArrow = tumDrawLoadImage("../resources/WhiteArrow.bmp");
 
 
     sprintf(PlayerOptions,"< 1 or 2 PLAYERS >");
@@ -292,7 +294,7 @@ void vDrawMainMenu(void)
     }
 
     checkDraw(tumDrawLoadedImage(SelectArrow,
-                                    SCREEN_WIDTH*3/4-tumDrawGetLoadedImageWidth(SelectArrow)/2,SCREEN_HEIGHT*5/10-tumDrawGetLoadedImageHeight(SelectArrow)/2),
+                                    SCREEN_WIDTH*3/4-15,SCREEN_HEIGHT*5/10-15),
                                     __FUNCTION__);
 
 
@@ -300,6 +302,7 @@ void vDrawMainMenu(void)
 
 void vMainMenu(void *pvParameters)
 {
+    SelectArrow=tumDrawLoadImage("../resources/WhiteArrow.bmp");
 
     while (1) {
         xGetButtonInput();
