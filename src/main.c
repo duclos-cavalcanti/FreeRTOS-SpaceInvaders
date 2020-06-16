@@ -40,14 +40,17 @@
 #define NEXT_TASK 0
 #define PREV_TASK 1
 
+#define ARROW_SIZE 30
+
 static TaskHandle_t MainMenu = NULL;
+static TaskHandle_t IntroGame = NULL;
+
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
 static QueueHandle_t StateQueue = NULL;
 
-
-static image_handle_t SelectArrow = NULL;
+static image_handle_t TitleScreen = NULL;
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -66,6 +69,16 @@ void xGetButtonInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
+        xSemaphoreGive(buttons.lock);
+    }
+}
+
+void xCheckQuit(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
+        if (buttons.buttons[KEYCODE(Q)]){
+            exit(EXIT_SUCCESS);
+        }              
         xSemaphoreGive(buttons.lock);
     }
 }
@@ -141,13 +154,13 @@ void vSwapBuffers(void *pvParameters)
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     const TickType_t frameratePeriod = 20;
-
+    
     tumDrawBindThread(); // Setup Rendering handle with correct GL context
 
     while (1) {
         if (xSemaphoreTake(ScreenLock, portMAX_DELAY) == pdTRUE) {
             tumDrawUpdateScreen();
-            tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+            tumEventFetchEvents(FETCH_EVENT_NONBLOCK);
             xSemaphoreGive(ScreenLock);
             xSemaphoreGive(DrawSignal);
             vTaskDelayUntil(&xLastWakeTime,
@@ -159,10 +172,9 @@ void vSwapBuffers(void *pvParameters)
 void ChangeMyState(volatile unsigned char* state, unsigned char forwards)
 {
     switch (forwards){
-
         case NEXT_TASK: 
             if(*state == STATE_COUNT){ //If its at the limit
-                *state = 0; //Reset
+                *state = BEGIN; //Reset
             }
             else (*state)++; //Increment
             break;
@@ -203,12 +215,10 @@ void vStateMachine(void *pvParameters){
 
     unsigned char input = 0;
     TickType_t Last_Change = 0;
-
     const int state_change_period = STATE_DEBOUNCE_DELAY;
 
     while(1){
         Last_Change=xTaskGetTickCount();
-        
         if (changed_state) goto initial_state;
 
         if (StateQueue){
@@ -221,17 +231,16 @@ void vStateMachine(void *pvParameters){
             }
         }
 
-
         initial_state:
             if (changed_state){
                 switch (current_state){
-                    case STATE_ONE: //The case when the Machine is just started
-                        if(MainMenu){
-                            vTaskResume(MainMenu); 
-                        }
+                    case STATE_ONE: // Begin 
+                        if(MainMenu) vTaskResume(MainMenu);
+                        if(IntroGame) vTaskSuspend(IntroGame);
                         break;
-
                     case STATE_TWO:
+                        if(MainMenu) vTaskSuspend(MainMenu);
+                        if(IntroGame) vTaskResume(IntroGame);
                         break;
                     case STATE_THREE:
                         break;
@@ -241,8 +250,9 @@ void vStateMachine(void *pvParameters){
                 }
                 changed_state=0; //Resets changed state
             }
-        }
+     }
 }
+
 void vDrawStaticTexts(void)
 {
     char Score_1[100];   
@@ -288,49 +298,59 @@ void vDrawMainMenu(void)
     sprintf(PlayerOptions,"< 1 or 2 PLAYERS >");
     if(!tumGetTextSize((char *)PlayerOptions,&PlayerOptionsWidth, NULL)){
                     checkDraw(tumDrawText(PlayerOptions,
-                                            SCREEN_WIDTH*2/4-PlayerOptionsWidth/2,SCREEN_HEIGHT*5/10-DEFAULT_FONT_SIZE/2,
+                                            SCREEN_WIDTH*2/4-PlayerOptionsWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
                                             White),
                                             __FUNCTION__);
     }
 
-    checkDraw(tumDrawLoadedImage(SelectArrow,
-                                    SCREEN_WIDTH*3/4-15,SCREEN_HEIGHT*5/10-15),
+    checkDraw(tumDrawLoadedImage(TitleScreen,
+                                    SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
                                     __FUNCTION__);
-
-
 }
 
-void vMainMenu(void *pvParameters)
+void vTaskMainMenu(void *pvParameters)
 {
-    SelectArrow=tumDrawLoadImage("../resources/WhiteArrow.bmp");
+    TitleScreen=tumDrawLoadImage("../resources/titlescreen.bmp");
 
     while (1) {
-        xGetButtonInput();
-        xSemaphoreTake(ScreenLock,portMAX_DELAY);
-        
-            tumDrawClear(Black); // Clear screen
-            vDrawStaticTexts();
-            vDrawMainMenu();
-            vCheckSM_Input();
-            vDrawFPS();
+        if(DrawSignal)
+            if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
+                xGetButtonInput();
+           
+                xSemaphoreTake(ScreenLock,portMAX_DELAY);
+                tumDrawClear(Black); 
+                vDrawStaticTexts();
+                vDrawMainMenu();
+                
+                xCheckQuit();
+                vCheckSM_Input();
+                
+                vDrawFPS();
 
-
-        xSemaphoreGive(ScreenLock);
-        vTaskDelay((TickType_t)20);
-    }
+                xSemaphoreGive(ScreenLock);
+                vTaskDelay((TickType_t)20);
+                }
+        }
 }
-void vIntroGame(void *pvParameters)
+
+void vTaskIntroGame(void *pvParameters)
 {
-    
     while(1){
-        xGetButtonInput();
-        xSemaphoreTake(ScreenLock,portMAX_DELAY);
-            tumDrawClear(Black);
-            vDrawFPS();    
-        xSemaphoreGive(ScreenLock);
-        vTaskDelay((TickType_t)20);
+        if(DrawSignal)
+            if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
+                xSemaphoreTake(ScreenLock,portMAX_DELAY);
+
+                tumDrawClear(Black);
+                vDrawStaticTexts();
+                vDrawFPS();    
+                
+                xSemaphoreGive(ScreenLock);
+                xCheckQuit();
+                vTaskDelay((TickType_t)20);
+            }
     }
 }
+
 int main(int argc, char *argv[])
 {
     char *bin_folder_path = tumUtilGetBinFolderPath(argv[0]);
@@ -381,21 +401,29 @@ int main(int argc, char *argv[])
         goto err_StateQueue;
     }
     if (xTaskCreate(vStateMachine, "StateMachine", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES-1, &StateMachine) != pdPASS) {
+                    configMAX_PRIORITIES-2, &StateMachine) != pdPASS) {
         goto err_StateMachine;
     }
     
-    if (xTaskCreate(vMainMenu, "MainMenu", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES-5, &MainMenu) != pdPASS) {
+    if (xTaskCreate(vTaskMainMenu, "MainMenu", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES-4, &MainMenu) != pdPASS) {
         goto err_mainmenu;
     }
 
+    if (xTaskCreate(vTaskIntroGame, "IntroGame", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES-4, &IntroGame) != pdPASS) {
+        goto err_IntroGame;
+    }
+    
     vTaskSuspend(MainMenu);
+    vTaskSuspend(IntroGame);
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
+err_IntroGame:
+    vTaskDelete(MainMenu);
 err_mainmenu:
     vTaskDelete(StateMachine);
 err_StateMachine:
