@@ -127,7 +127,7 @@ void vDrawFPS(void)
     if (!tumGetTextSize((char *)str, &text_width, NULL))
         checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
                               SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 1.5,
-                              Green),
+                              White),
                   __FUNCTION__);
 
     tumFontSelectFontFromHandle(cur_font);
@@ -240,7 +240,7 @@ void vStateMachine(void *pvParameters){
             }
         }
 }
-void vDrawStaticTexts()
+void vDrawStaticTexts(void)
 {
     char Score_1[100];   
     char Score_2[100];   
@@ -276,6 +276,28 @@ void vDrawStaticTexts()
                 }
 
 }
+void vDrawMainMenu(void)
+{
+    char PlayerOptions[100];
+    static int PlayerOptionsWidth=0;
+    image_handle_t SelectArrow = tumDrawLoadImage("../resources/WhiteArrow.bmp");
+
+
+    sprintf(PlayerOptions,"< 1 or 2 PLAYERS >");
+    if(!tumGetTextSize((char *)PlayerOptions,&PlayerOptionsWidth, NULL)){
+                    checkDraw(tumDrawText(PlayerOptions,
+                                            SCREEN_WIDTH*2/4-PlayerOptionsWidth/2,SCREEN_HEIGHT*5/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+    }
+
+    checkDraw(tumDrawLoadedImage(SelectArrow,
+                                    SCREEN_WIDTH*3/4-tumDrawGetLoadedImageWidth(SelectArrow)/2,SCREEN_HEIGHT*5/10-tumDrawGetLoadedImageHeight(SelectArrow)/2),
+                                    __FUNCTION__);
+
+
+}
+
 void vMainMenu(void *pvParameters)
 {
 
@@ -285,6 +307,7 @@ void vMainMenu(void *pvParameters)
         
             tumDrawClear(Black); // Clear screen
             vDrawStaticTexts();
+            vDrawMainMenu();
             vCheckSM_Input();
             vDrawFPS();
 
