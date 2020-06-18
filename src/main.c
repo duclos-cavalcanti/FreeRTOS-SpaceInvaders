@@ -214,7 +214,6 @@ void ChangeMyState(volatile unsigned char* state, unsigned char forwards)
 
 }
 
-
 void vCheckSM_Input()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -397,7 +396,6 @@ unsigned char xCheckShipShoot()
         }
         xSemaphoreGive(buttons.lock);
     }
-    
     return 0;    
 }
 unsigned char xCheckShipMoved(void)
@@ -429,13 +427,17 @@ unsigned char xCheckShipMoved(void)
 
 void vTaskIntroGame(void *pvParameters)
 {
-    ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*3/4,SHIPSPEED,
+    ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
                                 Green, SHIPSIZE);
     PlayerInfoBuffer.LivesLeft = 3;
     
     while(1){
         xCheckShipMoved();
-        xCheckShipShoot();
+        if(xCheckShipShoot())
+            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                CreateBullet(ShipBuffer.Ship);
+                xSemaphoreGive(ShipBuffer.lock);
+            }
         xCheckQuit();
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    

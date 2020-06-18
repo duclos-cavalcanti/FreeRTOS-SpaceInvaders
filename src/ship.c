@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "ship.h"
-
+#include "TUM_Draw.h"
 
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed,
                    unsigned int ShipColor, signed short size)
@@ -36,9 +36,14 @@ void vIncrementShipRight(ship_t* ship)
     ship->x_pos+=ship->speed;
 }
 
-void vShootBullet(ship_t* ship)
+void vDrawBullet(bullet_t* bullet)
 {
+    
 
+}
 
+void CreateBullet(ship_t* ship)
+{
+    
 
 }
