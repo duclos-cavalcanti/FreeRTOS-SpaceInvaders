@@ -45,6 +45,9 @@
 #define SHIPSIZE 20
 #define SHIPSPEED 2
 
+#define WALLTHICKNESS 3
+#define WALLPOS SCREEN_HEIGHT*95/100
+
 static TaskHandle_t MainMenu = NULL;
 static TaskHandle_t IntroGame = NULL;
 
@@ -74,6 +77,13 @@ typedef struct ShipBuffer_t{
 }ShipBuffer_t;
 
 static ShipBuffer_t ShipBuffer = { 0 };
+
+typedef struct PlayerBuffer_t{
+    unsigned short LivesLeft;
+    SemaphoreHandle_t lock;
+}PlayerBuffer_t;
+
+PlayerBuffer_t PlayerInfoBuffer = { 0 };
 
 void xGetButtonInput(void)
 {
@@ -281,20 +291,20 @@ void vDrawStaticTexts(void)
     
     if(!tumGetTextSize((char *)Score_1,&Score1_Width, NULL)){
                     checkDraw(tumDrawText(Score_1,
-                                            SCREEN_WIDTH*1/5-Score1_Width/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            SCREEN_WIDTH*1/8-Score1_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
                                             White),
                                             __FUNCTION__);
                 }
     
     if(!tumGetTextSize((char *)Score_2,&Score2_Width, NULL)){
                     checkDraw(tumDrawText(Score_2,
-                                            SCREEN_WIDTH*4/5-Score2_Width/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            SCREEN_WIDTH*7/8-Score2_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
                                             White),
                                             __FUNCTION__);
                 }
     if(!tumGetTextSize((char *)Hi_Score,&HiScoreWidth, NULL)){
                     checkDraw(tumDrawText(Hi_Score,
-                                            SCREEN_WIDTH*2/4-HiScoreWidth/2,SCREEN_HEIGHT*1/10-DEFAULT_FONT_SIZE/2,
+                                            SCREEN_WIDTH*2/4-HiScoreWidth/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
                                             White),
                                             __FUNCTION__);
                 }
@@ -342,7 +352,29 @@ void vTaskMainMenu(void *pvParameters)
                 }
         }
 }
+void vDrawLives()
+{   
+    static char str[100] = { 0 };
+    static int strWidth;
+    
+    if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
+        sprintf(str,"[ %d ]", PlayerInfoBuffer.LivesLeft);
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
 
+    if(!tumGetTextSize((char*)str, &strWidth, NULL))
+        checkDraw(tumDrawText(str, 15 - strWidth/2, 
+                              SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                              White),
+                              __FUNCTION__);
+}
+void vDrawLowerWall()
+{
+    checkDraw(tumDrawLine(0, WALLPOS,
+                          SCREEN_WIDTH, WALLPOS,
+                          WALLTHICKNESS,Green),
+                          __FUNCTION__);
+}
 void vDrawShip()
 {
     if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){
@@ -371,7 +403,7 @@ void xCheckShipInput(void)
             }
             xSemaphoreGive(buttons.lock);                                                                                                                                                                
         }   
-       
+        
         xSemaphoreGive(buttons.lock);         
     }   
 }
@@ -380,17 +412,22 @@ void vTaskIntroGame(void *pvParameters)
 {
     ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*3/4,SHIPSPEED,
                                 Green, SHIPSIZE);
-
+    PlayerInfoBuffer.LivesLeft = 3;
+    
     while(1){
         xCheckShipInput();
         xCheckQuit();
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
+
                     tumDrawClear(Black);
                     vDrawStaticTexts();
                     vDrawShip();                    
+                    vDrawLowerWall();
+                    vDrawLives();
                     vDrawFPS();    
+
                 xSemaphoreGive(ScreenLock);
             }
     }
@@ -466,6 +503,12 @@ int main(int argc, char *argv[])
         goto err_shipbuffer;
     }
     
+    PlayerInfoBuffer.lock = xSemaphoreCreateMutex();
+    if(!ShipBuffer.lock){
+        PRINT_ERROR("Failed to create Player info buffer lock.");
+        goto err_playerinfo;
+    }
+
     vTaskSuspend(MainMenu);
     vTaskSuspend(IntroGame);
 
@@ -473,6 +516,9 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+
+err_playerinfo:
+    vSemaphoreDelete(ShipBuffer.lock);
 err_shipbuffer:
     vTaskDelete(IntroGame);
 err_IntroGame:
