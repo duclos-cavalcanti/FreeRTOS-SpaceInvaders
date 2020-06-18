@@ -20,6 +20,8 @@
 
 #include "AsyncIO.h"
 
+#include "ship.h"
+
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
@@ -64,6 +66,13 @@ typedef struct buttons_buffer {
 } buttons_buffer_t;
 
 static buttons_buffer_t buttons = { 0 };
+
+typedef struct PlayerShip_t{
+    ship_t PlayerShip;
+    SemaphoreHandle_t lock;
+}PlayerShip_t;
+
+static PlayerShip_t PlayerShip;
 
 void xGetButtonInput(void)
 {
@@ -339,11 +348,11 @@ void vTaskIntroGame(void *pvParameters)
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
-
-                tumDrawClear(Black);
-                vDrawStaticTexts();
-                vDrawFPS();    
-                
+                    tumDrawClear(Black);
+                    vDrawStaticTexts();
+                    
+                    
+                    vDrawFPS();    
                 xSemaphoreGive(ScreenLock);
                 xCheckQuit();
             }
