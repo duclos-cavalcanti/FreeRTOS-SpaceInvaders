@@ -181,7 +181,7 @@ void ChangeMyState(volatile unsigned char* state, unsigned char forwards)
 
         case PREV_TASK:
             if ((*state)==0){
-                *state = STATE_COUNT; //Reset
+                *state = STATE_COUNT-1; //Reset
             }
             else (*state)--; //Decrement
             break;
@@ -322,13 +322,13 @@ void vTaskMainMenu(void *pvParameters)
                 vDrawStaticTexts();
                 vDrawMainMenu();
                 
-                xCheckQuit();
-                vCheckSM_Input();
                 
                 vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
-                vTaskDelay((TickType_t)20);
+               
+                xCheckQuit();
+                vCheckSM_Input();
                 }
         }
 }
@@ -346,7 +346,6 @@ void vTaskIntroGame(void *pvParameters)
                 
                 xSemaphoreGive(ScreenLock);
                 xCheckQuit();
-                vTaskDelay((TickType_t)20);
             }
     }
 }
