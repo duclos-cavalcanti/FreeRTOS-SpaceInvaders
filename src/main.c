@@ -46,7 +46,7 @@
 #define SHIPSPEED 2
 
 #define WALLTHICKNESS 3
-#define WALLPOS SCREEN_HEIGHT*95/100
+#define WALLPOSITION SCREEN_HEIGHT*95/100
 
 static TaskHandle_t MainMenu = NULL;
 static TaskHandle_t IntroGame = NULL;
@@ -345,7 +345,6 @@ void vTaskMainMenu(void *pvParameters)
                 
                 
                 vDrawFPS();
-
                 xSemaphoreGive(ScreenLock);
                 xCheckQuit();
                 vCheckSM_Input();
@@ -370,8 +369,8 @@ void vDrawLives()
 }
 void vDrawLowerWall()
 {
-    checkDraw(tumDrawLine(0, WALLPOS,
-                          SCREEN_WIDTH, WALLPOS,
+    checkDraw(tumDrawLine(0, WALLPOSITION,
+                          SCREEN_WIDTH, WALLPOSITION,
                           WALLTHICKNESS,Green),
                           __FUNCTION__);
 }
@@ -384,8 +383,24 @@ void vDrawShip()
         xSemaphoreGive(ShipBuffer.lock);
     }
 }
-
-void xCheckShipInput(void)
+unsigned char xCheckShipShoot()
+{
+    xGetButtonInput();
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(SPACE)]) {
+            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                xSemaphoreGive(ShipBuffer.lock);
+                xSemaphoreGive(buttons.lock);
+                return 1;
+            }
+            xSemaphoreGive(buttons.lock);
+        }
+        xSemaphoreGive(buttons.lock);
+    }
+    
+    return 0;    
+}
+unsigned char xCheckShipMoved(void)
 {
     xGetButtonInput();
     if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
@@ -393,6 +408,8 @@ void xCheckShipInput(void)
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 vIncrementShipLeft(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
+                xSemaphoreGive(buttons.lock);
+                return 1;
             }
             xSemaphoreGive(buttons.lock);
         }                            
@@ -400,12 +417,14 @@ void xCheckShipInput(void)
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 vIncrementShipRight(ShipBuffer.Ship); 
                 xSemaphoreGive(ShipBuffer.lock);
+                xSemaphoreGive(buttons.lock);                                                                                                                                                                
+                return 1;
             }
             xSemaphoreGive(buttons.lock);                                                                                                                                                                
         }   
-        
-        xSemaphoreGive(buttons.lock);         
+        xSemaphoreGive(buttons.lock);
     }   
+    return 0;
 }
 
 void vTaskIntroGame(void *pvParameters)
@@ -415,7 +434,8 @@ void vTaskIntroGame(void *pvParameters)
     PlayerInfoBuffer.LivesLeft = 3;
     
     while(1){
-        xCheckShipInput();
+        xCheckShipMoved();
+        xCheckShipShoot();
         xCheckQuit();
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    

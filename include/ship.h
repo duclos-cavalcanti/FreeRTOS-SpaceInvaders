@@ -16,5 +16,6 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
 void vIncrementShipLeft(ship_t* ship);
 void vIncrementShipRight(ship_t* ship);
 
+void vShootBullet(ship_t* ship);
 
 #endif 

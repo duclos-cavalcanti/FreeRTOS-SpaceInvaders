@@ -35,3 +35,10 @@ void vIncrementShipRight(ship_t* ship)
 {
     ship->x_pos+=ship->speed;
 }
+
+void vShootBullet(ship_t* ship)
+{
+
+
+
+}
