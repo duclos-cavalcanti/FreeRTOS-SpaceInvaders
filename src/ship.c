@@ -4,7 +4,8 @@
 
 #include "ship.h"
 
-ship_t* CreateShip(signed short initial_x, signed short initial_y, 
+
+ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed,
                    unsigned int ShipColor, signed short size)
 {
 
@@ -19,6 +20,18 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y,
     PlayerShip->radius = size;
     PlayerShip->x_pos = initial_x;
     PlayerShip->y_pos = initial_y;
+    PlayerShip->speed = speed;
 
     return PlayerShip;
+}
+
+
+void vIncrementShipLeft(ship_t* ship)
+{
+    ship->x_pos-=ship->speed;
+}
+
+void vIncrementShipRight(ship_t* ship)
+{
+    ship->x_pos+=ship->speed;
 }

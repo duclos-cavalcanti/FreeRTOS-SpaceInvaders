@@ -42,7 +42,8 @@
 #define NEXT_TASK 0
 #define PREV_TASK 1
 
-#define ARROW_SIZE 30
+#define SHIPSIZE 20
+#define SHIPSPEED 2
 
 static TaskHandle_t MainMenu = NULL;
 static TaskHandle_t IntroGame = NULL;
@@ -67,12 +68,12 @@ typedef struct buttons_buffer {
 
 static buttons_buffer_t buttons = { 0 };
 
-typedef struct PlayerShip_t{
-    ship_t PlayerShip;
+typedef struct ShipBuffer_t{
+    ship_t* Ship;
     SemaphoreHandle_t lock;
-}PlayerShip_t;
+}ShipBuffer_t;
 
-static PlayerShip_t PlayerShip;
+static ShipBuffer_t ShipBuffer = { 0 };
 
 void xGetButtonInput(void)
 {
@@ -84,8 +85,9 @@ void xGetButtonInput(void)
 
 void xCheckQuit(void)
 {
+    xGetButtonInput();
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
-        if (buttons.buttons[KEYCODE(Q)]){
+            if (buttons.buttons[KEYCODE(Q)]){
             exit(EXIT_SUCCESS);
         }              
         xSemaphoreGive(buttons.lock);
@@ -335,26 +337,61 @@ void vTaskMainMenu(void *pvParameters)
                 vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
-               
                 xCheckQuit();
                 vCheckSM_Input();
                 }
         }
 }
 
+void vDrawShip()
+{
+    if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){
+        checkDraw(tumDrawCircle(ShipBuffer.Ship->x_pos,ShipBuffer.Ship->y_pos,
+                                ShipBuffer.Ship->radius,ShipBuffer.Ship->color),
+                                __FUNCTION__);
+        xSemaphoreGive(ShipBuffer.lock);
+    }
+}
+
+void xCheckShipInput(void)
+{
+    xGetButtonInput();
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(LEFT)]) {
+            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                vIncrementShipLeft(ShipBuffer.Ship);
+                xSemaphoreGive(ShipBuffer.lock);
+            }
+            xSemaphoreGive(buttons.lock);
+        }                            
+        if (buttons.buttons[KEYCODE(RIGHT)]) { 
+            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                vIncrementShipRight(ShipBuffer.Ship); 
+                xSemaphoreGive(ShipBuffer.lock);
+            }
+            xSemaphoreGive(buttons.lock);                                                                                                                                                                
+        }   
+       
+        xSemaphoreGive(buttons.lock);         
+    }   
+}
+
 void vTaskIntroGame(void *pvParameters)
 {
+    ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*3/4,SHIPSPEED,
+                                Green, SHIPSIZE);
+
     while(1){
+        xCheckShipInput();
+        xCheckQuit();
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
                     tumDrawClear(Black);
                     vDrawStaticTexts();
-                    
-                    
+                    vDrawShip();                    
                     vDrawFPS();    
                 xSemaphoreGive(ScreenLock);
-                xCheckQuit();
             }
     }
 }
@@ -423,6 +460,12 @@ int main(int argc, char *argv[])
         goto err_IntroGame;
     }
     
+    ShipBuffer.lock = xSemaphoreCreateMutex();
+    if(!ShipBuffer.lock){
+        PRINT_ERROR("Failed to create Ship buffer lock.");
+        goto err_shipbuffer;
+    }
+    
     vTaskSuspend(MainMenu);
     vTaskSuspend(IntroGame);
 
@@ -430,6 +473,8 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+err_shipbuffer:
+    vTaskDelete(IntroGame);
 err_IntroGame:
     vTaskDelete(MainMenu);
 err_mainmenu:
