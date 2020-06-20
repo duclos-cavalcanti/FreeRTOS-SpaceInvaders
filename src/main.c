@@ -50,6 +50,7 @@
 
 static TaskHandle_t MainMenu = NULL;
 static TaskHandle_t IntroGame = NULL;
+static TaskHandle_t ShipBullet = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -80,6 +81,7 @@ static ShipBuffer_t ShipBuffer = { 0 };
 
 typedef struct PlayerBuffer_t{
     unsigned short LivesLeft;
+    unsigned short Level;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
 
@@ -350,18 +352,32 @@ void vTaskMainMenu(void *pvParameters)
                 }
         }
 }
+void vDrawLevel()
+{
+    static char str[100] = { 0 };
+    static int strWidth = { 0 };
+    if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
+        sprintf(str,"Level [ %d  ]", PlayerInfoBuffer.Level);
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
+    if(!tumGetTextSize((char*)str, &strWidth, NULL))
+        checkDraw(tumDrawText(str,120- strWidth/2,
+                              SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                              White),
+                              __FUNCTION__);
+}
 void vDrawLives()
 {   
     static char str[100] = { 0 };
     static int strWidth;
     
     if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
-        sprintf(str,"[ %d ]", PlayerInfoBuffer.LivesLeft);
+        sprintf(str,"Lives: [ %d ]", PlayerInfoBuffer.LivesLeft);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 
     if(!tumGetTextSize((char*)str, &strWidth, NULL))
-        checkDraw(tumDrawText(str, 15 - strWidth/2, 
+        checkDraw(tumDrawText(str, 35 - strWidth/2, 
                               SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                               White),
                               __FUNCTION__);
@@ -425,18 +441,34 @@ unsigned char xCheckShipMoved(void)
     return 0;
 }
 
+void vTaskShipBulletControl(void *pvParameters)
+{
+
+    while(1){
+        uint32_t BulletLaunchSignal;
+
+        if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
+            vUpdateShipBulletPos(ShipBuffer.Ship);
+            xSemaphoreGive(ShipBuffer.lock);
+        }
+    }
+
+}
 void vTaskIntroGame(void *pvParameters)
 {
     ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
                                 Green, SHIPSIZE);
     PlayerInfoBuffer.LivesLeft = 3;
-    
+    PlayerInfoBuffer.Level = 1;    
+    static unsigned char BulletOnScreenFlag = 0;
+
     while(1){
         xCheckShipMoved();
         if(xCheckShipShoot())
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 CreateBullet(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
+                BulletOnScreenFlag = 1;
             }
         xCheckQuit();
         if(DrawSignal)
@@ -446,7 +478,15 @@ void vTaskIntroGame(void *pvParameters)
                     tumDrawClear(Black);
                     vDrawStaticTexts();
                     vDrawShip();                    
+                    if(BulletOnScreenFlag) {
+                        if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
+                            vDrawShipBullet(ShipBuffer.Ship);
+                            vTaskResume(ShipBullet);
+                            xTaskNotify(ShipBullet, 0x01, eSetValueWithOverwrite);
+                        }
+                    }
                     vDrawLowerWall();
+                    vDrawLevel();
                     vDrawLives();
                     vDrawFPS();    
 
@@ -531,14 +571,21 @@ int main(int argc, char *argv[])
         goto err_playerinfo;
     }
 
+    if (xTaskCreate(vTaskShipBulletControl, "ShipBulletTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES - 5, &ShipBullet)!= pdPASS){
+        PRINT_ERROR("Failed to create ShipBulletTask.");
+        goto err_shipbulletcontrol;
+    }
     vTaskSuspend(MainMenu);
     vTaskSuspend(IntroGame);
+    vTaskSuspend(ShipBullet);
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
-
+err_shipbulletcontrol:
+    vSemaphoreDelete(PlayerInfoBuffer.lock);
 err_playerinfo:
     vSemaphoreDelete(ShipBuffer.lock);
 err_shipbuffer:

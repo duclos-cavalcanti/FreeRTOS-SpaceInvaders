@@ -4,6 +4,11 @@
 
 #include "ship.h"
 #include "TUM_Draw.h"
+#include "main.h"
+
+#define SHIP_BULLET_SPEED 8
+#define SHIP_Y_OFFSET 5
+#define SHIP_BULLET_THICKNESS 5
 
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed,
                    unsigned int ShipColor, signed short size)
@@ -36,14 +41,33 @@ void vIncrementShipRight(ship_t* ship)
     ship->x_pos+=ship->speed;
 }
 
-void vDrawBullet(bullet_t* bullet)
-{
-    
-
-}
 
 void CreateBullet(ship_t* ship)
 {
     
+    bullet_t* ShipBullet = calloc(1,sizeof(bullet_t));
+    if(!ShipBullet){
+        fprintf(stderr, "Creating Ship's Bullet Failed\n");
+        exit(EXIT_FAILURE);
+    }
 
+    ShipBullet->color = Green;
+    ShipBullet->x_pos=ship->x_pos;
+    ShipBullet->y_pos=ship->y_pos - SHIP_Y_OFFSET;
+    ShipBullet->speed = SHIP_BULLET_SPEED;
+    
+    ship->bullet = ShipBullet; 
+
+}
+
+void vDrawShipBullet(ship_t* ship)
+{
+    checkDraw(tumDrawLine(ship->bullet->x_pos, ship->bullet->y_pos,
+                         ship->bullet->x_pos, ship->bullet->y_pos+10,
+                          SHIP_BULLET_THICKNESS,Green),
+                          __FUNCTION__);
+}
+void vUpdateShipBulletPos(ship_t* ship)
+{
+    ship->bullet->y_pos-=ship->bullet->speed;
 }
