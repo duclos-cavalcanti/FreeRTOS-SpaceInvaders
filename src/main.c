@@ -20,6 +20,7 @@
 
 #include "AsyncIO.h"
 
+#include "main.h"
 #include "ship.h"
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
@@ -59,6 +60,7 @@ static QueueHandle_t StateQueue = NULL;
 static QueueHandle_t ShipBulletQueue = NULL;
 
 static image_handle_t TitleScreen = NULL;
+static image_handle_t PlayerShip = NULL;
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -327,7 +329,8 @@ void vDrawMainMenu(void)
     }
 
     checkDraw(tumDrawLoadedImage(TitleScreen,
-                                    SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
+                                    SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
+                                    SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
                                     __FUNCTION__);
 }
 
@@ -393,9 +396,10 @@ void vDrawLowerWall()
 void vDrawShip()
 {
     if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){
-        checkDraw(tumDrawCircle(ShipBuffer.Ship->x_pos,ShipBuffer.Ship->y_pos,
-                                ShipBuffer.Ship->radius,ShipBuffer.Ship->color),
-                                __FUNCTION__);
+        checkDraw(tumDrawLoadedImage(PlayerShip, 
+                                     ShipBuffer.Ship->x_pos - PLAYERSHIP_WIDTH/2,
+                                     ShipBuffer.Ship->y_pos - PLAYERSHIP_HEIGHT/2),
+                                     __FUNCTION__);
         xSemaphoreGive(ShipBuffer.lock);
     }
 }
@@ -463,6 +467,8 @@ void vTaskIntroGame(void *pvParameters)
     PlayerInfoBuffer.LivesLeft = 3;
     PlayerInfoBuffer.Level = 1;    
     static unsigned char BulletOnScreenFlag = 0;
+
+    PlayerShip=tumDrawLoadImage("../resources/player.bmp");
 
     while(1){
         xCheckShipMoved();
