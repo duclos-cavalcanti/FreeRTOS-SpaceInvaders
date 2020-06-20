@@ -55,7 +55,8 @@ void CreateBullet(ship_t* ship)
     ShipBullet->x_pos=ship->x_pos;
     ShipBullet->y_pos=ship->y_pos - SHIP_Y_OFFSET;
     ShipBullet->speed = SHIP_BULLET_SPEED;
-    
+    ShipBullet->BulletAliveFlag=1;
+
     ship->bullet = ShipBullet; 
 
 }
@@ -67,7 +68,21 @@ void vDrawShipBullet(ship_t* ship)
                           SHIP_BULLET_THICKNESS,Green),
                           __FUNCTION__);
 }
+
 void vUpdateShipBulletPos(ship_t* ship)
 {
     ship->bullet->y_pos-=ship->bullet->speed;
+}
+
+unsigned char xCheckShipBulletLeftScreen(ship_t* ship)
+{
+    if(ship->bullet->y_pos<=10) return 1;
+    else return 0;
+
+}
+
+
+unsigned char xCheckShipBulletStatus(ship_t* ship)
+{
+    return xCheckShipBulletLeftScreen(ship);
 }

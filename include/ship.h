@@ -8,6 +8,7 @@ signed short speed;
 
 signed short color;
 
+unsigned char BulletAliveFlag;
 }bullet_t;
 
 typedef struct ship_t{
@@ -27,6 +28,10 @@ void vIncrementShipLeft(ship_t* ship);
 void vIncrementShipRight(ship_t* ship);
 
 void CreateBullet(ship_t* ship);
+
+unsigned char xCheckShipBulletStatus(ship_t* ship);
+unsigned char xCheckShipBulletLeftScreen(ship_t* ship);
+
 void vUpdateShipBulletPos(ship_t* ship);
 void vDrawShipBullet(ship_t* ship);
 #endif 

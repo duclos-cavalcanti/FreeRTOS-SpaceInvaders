@@ -50,12 +50,13 @@
 
 static TaskHandle_t MainMenu = NULL;
 static TaskHandle_t IntroGame = NULL;
-static TaskHandle_t ShipBullet = NULL;
+static TaskHandle_t ShipBulletTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
 static QueueHandle_t StateQueue = NULL;
+static QueueHandle_t ShipBulletQueue = NULL;
 
 static image_handle_t TitleScreen = NULL;
 
@@ -449,7 +450,8 @@ void vTaskShipBulletControl(void *pvParameters)
 
         if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
             vUpdateShipBulletPos(ShipBuffer.Ship);
-            xSemaphoreGive(ShipBuffer.lock);
+            if (xCheckShipBulletStatus(ShipBuffer.Ship))
+                ShipBuffer.Ship->bullet->BulletAliveFlag=0;
         }
     }
 
@@ -464,13 +466,12 @@ void vTaskIntroGame(void *pvParameters)
 
     while(1){
         xCheckShipMoved();
-        if(xCheckShipShoot())
+        if(xCheckShipShoot() && BulletOnScreenFlag==0)
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 CreateBullet(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
                 BulletOnScreenFlag = 1;
             }
-        xCheckQuit();
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
@@ -480,10 +481,16 @@ void vTaskIntroGame(void *pvParameters)
                     vDrawShip();                    
                     if(BulletOnScreenFlag) {
                         if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
-                            vDrawShipBullet(ShipBuffer.Ship);
-                            vTaskResume(ShipBullet);
-                            xTaskNotify(ShipBullet, 0x01, eSetValueWithOverwrite);
+                            if(ShipBuffer.Ship->bullet->BulletAliveFlag){
+                                vDrawShipBullet(ShipBuffer.Ship);
+                                vTaskResume(ShipBulletTask);
+                                xTaskNotify(ShipBulletTask, 0x01, eSetValueWithOverwrite);
+                                xSemaphoreGive(ShipBuffer.lock);
+                            }
+                            else BulletOnScreenFlag=0;
+                            xSemaphoreGive(ShipBuffer.lock);
                         }
+                        xSemaphoreGive(ShipBuffer.lock);
                     }
                     vDrawLowerWall();
                     vDrawLevel();
@@ -491,6 +498,7 @@ void vTaskIntroGame(void *pvParameters)
                     vDrawFPS();    
 
                 xSemaphoreGive(ScreenLock);
+                xCheckQuit();
             }
     }
 }
@@ -572,18 +580,27 @@ int main(int argc, char *argv[])
     }
 
     if (xTaskCreate(vTaskShipBulletControl, "ShipBulletTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES - 5, &ShipBullet)!= pdPASS){
+                    configMAX_PRIORITIES - 5, &ShipBulletTask)!= pdPASS){
         PRINT_ERROR("Failed to create ShipBulletTask.");
         goto err_shipbulletcontrol;
     }
+
+    ShipBulletQueue = xQueueCreate(STATE_Q_LEN, sizeof(unsigned char));
+    if (!ShipBulletQueue){
+        PRINT_ERROR("Could not open ShipBulletQ.");
+        goto err_shipbulletqueue;
+    }
+
     vTaskSuspend(MainMenu);
     vTaskSuspend(IntroGame);
-    vTaskSuspend(ShipBullet);
+    vTaskSuspend(ShipBulletTask);
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
+err_shipbulletqueue:
+    vTaskDelete(ShipBulletTask);
 err_shipbulletcontrol:
     vSemaphoreDelete(PlayerInfoBuffer.lock);
 err_playerinfo:
