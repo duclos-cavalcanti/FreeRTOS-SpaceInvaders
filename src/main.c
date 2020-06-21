@@ -344,12 +344,10 @@ void vTaskMainMenu(void *pvParameters)
                 xGetButtonInput();
            
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
-                tumDrawClear(Black); 
-                vDrawStaticTexts();
-                vDrawMainMenu();
-                
-                
-                vDrawFPS();
+                    tumDrawClear(Black); 
+                    vDrawStaticTexts();
+                    vDrawMainMenu();
+                    vDrawFPS();
                 xSemaphoreGive(ScreenLock);
                 xCheckQuit();
                 vCheckSM_Input();
@@ -446,6 +444,20 @@ unsigned char xCheckShipMoved(void)
     return 0;
 }
 
+void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
+{
+    if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
+        if(ShipBuffer.Ship->bullet->BulletAliveFlag){
+            vDrawShipBullet(ShipBuffer.Ship);
+            vTaskResume(ShipBulletTask);
+            xTaskNotify(ShipBulletTask, 0x01, eSetValueWithOverwrite);
+            xSemaphoreGive(ShipBuffer.lock);
+        }
+        else (*BulletOnScreenFlag)=0;
+        xSemaphoreGive(ShipBuffer.lock);
+    }
+    xSemaphoreGive(ShipBuffer.lock);
+}
 void vTaskShipBulletControl(void *pvParameters)
 {
 
@@ -472,7 +484,7 @@ void vTaskIntroGame(void *pvParameters)
 
     while(1){
         xCheckShipMoved();
-        if(xCheckShipShoot() && BulletOnScreenFlag==0)
+        if(xCheckShipShoot() && BulletOnScreenFlag==0) // User wishes to shoot a bullet
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 CreateBullet(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
@@ -485,19 +497,10 @@ void vTaskIntroGame(void *pvParameters)
                     tumDrawClear(Black);
                     vDrawStaticTexts();
                     vDrawShip();                    
-                    if(BulletOnScreenFlag) {
-                        if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
-                            if(ShipBuffer.Ship->bullet->BulletAliveFlag){
-                                vDrawShipBullet(ShipBuffer.Ship);
-                                vTaskResume(ShipBulletTask);
-                                xTaskNotify(ShipBulletTask, 0x01, eSetValueWithOverwrite);
-                                xSemaphoreGive(ShipBuffer.lock);
-                            }
-                            else BulletOnScreenFlag=0;
-                            xSemaphoreGive(ShipBuffer.lock);
-                        }
-                        xSemaphoreGive(ShipBuffer.lock);
-                    }
+
+                    if(BulletOnScreenFlag)
+                        vTriggerShipBulletControl(&BulletOnScreenFlag);
+
                     vDrawLowerWall();
                     vDrawLevel();
                     vDrawLives();
