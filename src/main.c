@@ -22,6 +22,7 @@
 
 #include "main.h"
 #include "ship.h"
+#include "bunkers.h"
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
@@ -57,7 +58,6 @@ static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
 static QueueHandle_t StateQueue = NULL;
-static QueueHandle_t ShipBulletQueue = NULL;
 
 static image_handle_t TitleScreen = NULL;
 static image_handle_t PlayerShip = NULL;
@@ -72,14 +72,12 @@ typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
     SemaphoreHandle_t lock;
 } buttons_buffer_t;
-
 static buttons_buffer_t buttons = { 0 };
 
 typedef struct ShipBuffer_t{
     ship_t* Ship;
     SemaphoreHandle_t lock;
 }ShipBuffer_t;
-
 static ShipBuffer_t ShipBuffer = { 0 };
 
 typedef struct PlayerBuffer_t{
@@ -87,8 +85,13 @@ typedef struct PlayerBuffer_t{
     unsigned short Level;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
+static PlayerBuffer_t PlayerInfoBuffer = { 0 };
 
-PlayerBuffer_t PlayerInfoBuffer = { 0 };
+typedef struct BunkersBuffer_t{
+    bunkers_t* Bunkers;
+    SemaphoreHandle_t lock;
+}BunkersBuffer_t;
+static BunkersBuffer_t BunkersBuffer = { 0 };
 
 void xGetButtonInput(void)
 {
@@ -336,7 +339,7 @@ void vDrawMainMenu(void)
 
 void vTaskMainMenu(void *pvParameters)
 {
-    TitleScreen=tumDrawLoadImage("../resources/titlescreen.bmp");
+    TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
 
     while (1) {
         if(DrawSignal)
@@ -359,7 +362,7 @@ void vDrawLevel()
     static char str[100] = { 0 };
     static int strWidth = { 0 };
     if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
-        sprintf(str,"Level [ %d  ]", PlayerInfoBuffer.Level);
+        sprintf(str,"Level [ %d ]", PlayerInfoBuffer.Level);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
     if(!tumGetTextSize((char*)str, &strWidth, NULL))
@@ -383,6 +386,35 @@ void vDrawLives()
                               SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                               White),
                               __FUNCTION__);
+}
+void vDrawBunkers()
+{
+    if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){  
+        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2, 
+                                   BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2,
+                                   BunkersBuffer.Bunkers->b1->size, BunkersBuffer.Bunkers->b1->size,
+                                   BunkersBuffer.Bunkers->b1->color),
+                                   __FUNCTION__);
+
+        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2, 
+                                   BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2,
+                                   BunkersBuffer.Bunkers->b2->size, BunkersBuffer.Bunkers->b2->size,
+                                   BunkersBuffer.Bunkers->b2->color),
+                                   __FUNCTION__);
+
+        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2, 
+                                   BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2,
+                                   BunkersBuffer.Bunkers->b3->size, BunkersBuffer.Bunkers->b3->size,
+                                   BunkersBuffer.Bunkers->b3->color),
+                                   __FUNCTION__);
+
+        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2, 
+                                   BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2,
+                                   BunkersBuffer.Bunkers->b4->size, BunkersBuffer.Bunkers->b4->size,
+                                   BunkersBuffer.Bunkers->b4->color),
+                                   __FUNCTION__);
+        xSemaphoreGive(BunkersBuffer.lock);
+    }
 }
 void vDrawLowerWall()
 {
@@ -472,19 +504,23 @@ void vTaskShipBulletControl(void *pvParameters)
     }
 
 }
-void vTaskIntroGame(void *pvParameters)
+void vTaskGame(void *pvParameters)
 {
+    PlayerShip=tumDrawLoadImage("../resources/player.bmp");
     ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
                                 Green, SHIPSIZE);
+
     PlayerInfoBuffer.LivesLeft = 3;
     PlayerInfoBuffer.Level = 1;    
-    static unsigned char BulletOnScreenFlag = 0;
+    
+    BunkersBuffer.Bunkers = CreateBunkers();
 
-    PlayerShip=tumDrawLoadImage("../resources/player.bmp");
+    static unsigned char BulletOnScreenFlag = 0; //if 0, No bullet on screen so player is allowed to shoot.
+
 
     while(1){
         xCheckShipMoved();
-        if(xCheckShipShoot() && BulletOnScreenFlag==0) // User wishes to shoot a bullet
+        if(xCheckShipShoot() && BulletOnScreenFlag==0) // User wishes to shoot a bullet.
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
                 CreateBullet(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
@@ -501,6 +537,7 @@ void vTaskIntroGame(void *pvParameters)
                     if(BulletOnScreenFlag)
                         vTriggerShipBulletControl(&BulletOnScreenFlag);
 
+                    vDrawBunkers();
                     vDrawLowerWall();
                     vDrawLevel();
                     vDrawLives();
@@ -571,7 +608,7 @@ int main(int argc, char *argv[])
         goto err_mainmenu;
     }
 
-    if (xTaskCreate(vTaskIntroGame, "IntroGame", mainGENERIC_STACK_SIZE * 2, NULL,
+    if (xTaskCreate(vTaskGame, "IntroGame", mainGENERIC_STACK_SIZE * 2, NULL,
                     configMAX_PRIORITIES-4, &IntroGame) != pdPASS) {
         goto err_IntroGame;
     }
@@ -594,10 +631,10 @@ int main(int argc, char *argv[])
         goto err_shipbulletcontrol;
     }
 
-    ShipBulletQueue = xQueueCreate(STATE_Q_LEN, sizeof(unsigned char));
-    if (!ShipBulletQueue){
-        PRINT_ERROR("Could not open ShipBulletQ.");
-        goto err_shipbulletqueue;
+    BunkersBuffer.lock = xSemaphoreCreateMutex();
+    if(!BunkersBuffer.lock){
+        PRINT_ERROR("Failed to create Bunkers Buffer lock.");
+        goto err_bunkersbuffer;
     }
 
     vTaskSuspend(MainMenu);
@@ -608,7 +645,7 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
-err_shipbulletqueue:
+err_bunkersbuffer:
     vTaskDelete(ShipBulletTask);
 err_shipbulletcontrol:
     vSemaphoreDelete(PlayerInfoBuffer.lock);
