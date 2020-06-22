@@ -2,14 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #include "bunkers.h"
 #include "main.h"
 
-#include "TUM_Draw.h"
-
-
-#define BUNKER_SIDE_SIZE 20
 
 SingleBunker_t* CreateSingleBunker(signed short x_pos, signed short y_pos,
                                    unsigned int color, signed short size)
@@ -30,10 +25,11 @@ SingleBunker_t* CreateSingleBunker(signed short x_pos, signed short y_pos,
 
 bunkers_t* CreateBunkers()
 {
-   SingleBunker_t* b1=CreateSingleBunker(SCREEN_WIDTH*1/8,SCREEN_HEIGHT*70/100,Green, BUNKER_SIDE_SIZE);
-   SingleBunker_t* b2=CreateSingleBunker(SCREEN_WIDTH*3/8,SCREEN_HEIGHT*70/100,Green, BUNKER_SIDE_SIZE);
-   SingleBunker_t* b3=CreateSingleBunker(SCREEN_WIDTH*5/8,SCREEN_HEIGHT*70/100,Green, BUNKER_SIDE_SIZE);
-   SingleBunker_t* b4=CreateSingleBunker(SCREEN_WIDTH*7/8,SCREEN_HEIGHT*70/100,Green, BUNKER_SIDE_SIZE);
+   SingleBunker_t* b1=CreateSingleBunker(B1_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
+   SingleBunker_t* b2=CreateSingleBunker(B2_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
+   SingleBunker_t* b3=CreateSingleBunker(B3_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
+   SingleBunker_t* b4=CreateSingleBunker(B4_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
+   printf("Bunkers Y_POS: %d\n",BUNKERS_Y_POS);
 
     bunkers_t* Bunkers = calloc(1,sizeof(bunkers_t));
     if(!Bunkers){
@@ -45,7 +41,22 @@ bunkers_t* CreateBunkers()
     Bunkers->b2=b2;
     Bunkers->b3=b3;
     Bunkers->b4=b4;
+    
+    Bunkers->b1Lives=5;
+    Bunkers->b2Lives=5;
+    Bunkers->b3Lives=5;
+    Bunkers->b4Lives=5;
 
     return Bunkers;
 }
 
+unsigned char xCheckBunkersCollision(ship_t* ship)
+{
+    
+    return 1;
+}
+
+void vUpdateBunkersStatus(bunkers_t* bunkers)
+{
+
+}

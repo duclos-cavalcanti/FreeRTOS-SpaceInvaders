@@ -51,8 +51,9 @@
 #define WALLPOSITION SCREEN_HEIGHT*95/100
 
 static TaskHandle_t MainMenu = NULL;
-static TaskHandle_t IntroGame = NULL;
+static TaskHandle_t MainGameTask = NULL;
 static TaskHandle_t ShipBulletTask = NULL;
+static TaskHandle_t BunkerControlTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -264,11 +265,12 @@ void vStateMachine(void *pvParameters){
                 switch (current_state){
                     case STATE_ONE: // Begin 
                         if(MainMenu) vTaskResume(MainMenu);
-                        if(IntroGame) vTaskSuspend(IntroGame);
+                        if(MainGameTask) vTaskSuspend(MainGameTask);
+                        if(BunkerControlTask) vTaskSuspend(BunkerControlTask);
                         break;
                     case STATE_TWO:
                         if(MainMenu) vTaskSuspend(MainMenu);
-                        if(IntroGame) vTaskResume(IntroGame);
+                        if(MainGameTask) vTaskResume(MainGameTask);
                         break;
                     case STATE_THREE:
                         break;
@@ -490,6 +492,21 @@ void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
     }
     xSemaphoreGive(ShipBuffer.lock);
 }
+void vTaskBunkerControl(void *pvParameters)
+{
+    while(1){
+        uint32_t BulletCollisionSignal;
+
+       if(xTaskNotifyWait(0x00, 0xffffffff, &BulletCollisionSignal, portMAX_DELAY)==pdTRUE){
+           if(xSemaphoreTake(BunkersBuffer.lock,portMAX_DELAY)==pdTRUE){
+                vUpdateBunkersStatus(BunkersBuffer.Bunkers);
+                xSemaphoreGive(BunkersBuffer.lock);
+           }
+       }
+    
+    }
+
+}
 void vTaskShipBulletControl(void *pvParameters)
 {
 
@@ -498,7 +515,7 @@ void vTaskShipBulletControl(void *pvParameters)
 
         if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
             vUpdateShipBulletPos(ShipBuffer.Ship);
-            if (xCheckShipBulletStatus(ShipBuffer.Ship))
+            if (xCheckShipBulletCollision(ShipBuffer.Ship))
                 ShipBuffer.Ship->bullet->BulletAliveFlag=0;
         }
     }
@@ -515,7 +532,7 @@ void vTaskGame(void *pvParameters)
     
     BunkersBuffer.Bunkers = CreateBunkers();
 
-    static unsigned char BulletOnScreenFlag = 0; //if 0, No bullet on screen so player is allowed to shoot.
+    static unsigned char BulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
 
 
     while(1){
@@ -608,9 +625,9 @@ int main(int argc, char *argv[])
         goto err_mainmenu;
     }
 
-    if (xTaskCreate(vTaskGame, "IntroGame", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES-4, &IntroGame) != pdPASS) {
-        goto err_IntroGame;
+    if (xTaskCreate(vTaskGame, "MainGameTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES-4, &MainGameTask) != pdPASS) {
+        goto err_MainGameTask;
     }
     
     ShipBuffer.lock = xSemaphoreCreateMutex();
@@ -637,14 +654,22 @@ int main(int argc, char *argv[])
         goto err_bunkersbuffer;
     }
 
+    if (xTaskCreate(vTaskBunkerControl, "BunkerControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                    configMAX_PRIORITIES - 4, &BunkerControlTask)!=pdPASS){
+        PRINT_ERROR("Failed to create BunkerControlTask.");
+        goto err_bunkercontroltask;
+    }
+
     vTaskSuspend(MainMenu);
-    vTaskSuspend(IntroGame);
+    vTaskSuspend(MainGameTask);
     vTaskSuspend(ShipBulletTask);
+    vTaskSuspend(BunkerControlTask);
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
-
+err_bunkercontroltask:
+    vSemaphoreDelete(BunkersBuffer.lock);
 err_bunkersbuffer:
     vTaskDelete(ShipBulletTask);
 err_shipbulletcontrol:
@@ -652,8 +677,8 @@ err_shipbulletcontrol:
 err_playerinfo:
     vSemaphoreDelete(ShipBuffer.lock);
 err_shipbuffer:
-    vTaskDelete(IntroGame);
-err_IntroGame:
+    vTaskDelete(MainGameTask);
+err_MainGameTask:
     vTaskDelete(MainMenu);
 err_mainmenu:
     vTaskDelete(StateMachine);
