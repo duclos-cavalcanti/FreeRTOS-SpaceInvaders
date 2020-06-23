@@ -20,6 +20,7 @@ creature_t* CreateCreature(signed short x_pos, signed short y_pos,
     creature->y_pos=y_pos;
     creature->speed=SPEED;
 
+    creature->Alive=1;
     creature->CreatureType=CreatureType;
     creature->CreatureID=ID;
 
@@ -45,6 +46,5 @@ unsigned char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
 
 void vUpdateCreatureStatus(creature_t* creature, unsigned char creatureID)
 {
-    
-
+   creature->Alive=0; 
 }

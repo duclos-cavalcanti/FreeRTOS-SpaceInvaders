@@ -51,11 +51,11 @@
 #define WALLTHICKNESS 3
 #define WALLPOSITION SCREEN_HEIGHT*95/100
 
-static TaskHandle_t MainMenu = NULL;
+static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainGameTask = NULL;
 static TaskHandle_t ShipBulletTask = NULL;
-static TaskHandle_t BunkerControlTask = NULL;
-static TaskHandle_t CreaturesControlTask = NULL;
+static TaskHandle_t BunkerShotControlTask = NULL;
+static TaskHandle_t CreaturesShotControlTask = NULL;
 
 
 static TaskHandle_t SwapBuffers = NULL;
@@ -275,11 +275,11 @@ void vStateMachine(void *pvParameters){
             if (changed_state){
                 switch (current_state){
                     case STATE_ONE: // Begin 
-                        if(MainMenu) vTaskResume(MainMenu);
+                        if(MainMenuTask) vTaskResume(MainMenuTask);
                         if(MainGameTask) vTaskSuspend(MainGameTask);
                         break;
                     case STATE_TWO:
-                        if(MainMenu) vTaskSuspend(MainMenu);
+                        if(MainMenuTask) vTaskSuspend(MainMenuTask);
                         if(MainGameTask) vTaskResume(MainGameTask);
                         break;
                     case STATE_THREE:
@@ -302,9 +302,9 @@ void vDrawStaticTexts(void)
     static int Score1_Width,Score2_Width,HiScoreWidth=0;
 
     sprintf(Score_1,
-            "SCORE<1>");
+            "SCORE [1]");
     sprintf(Score_2,
-            "SCORE<2>");
+            "SCORE [2]");
     sprintf(Hi_Score,
             "HI-SCORE");
     
@@ -335,7 +335,7 @@ void vDrawMainMenu(void)
     static int PlayerOptionsWidth=0;
 
 
-    sprintf(PlayerOptions,"< 1 or 2 PLAYERS >");
+    sprintf(PlayerOptions,"1 or 2 PLAYERS");
     if(!tumGetTextSize((char *)PlayerOptions,&PlayerOptionsWidth, NULL)){
                     checkDraw(tumDrawText(PlayerOptions,
                                             SCREEN_WIDTH*2/4-PlayerOptionsWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
@@ -407,10 +407,11 @@ void vDrawLives()
 void vDrawCreatures()
 {
     if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-        checkDraw(tumDrawLoadedImage(CreatureExample, 
-                                     CreaturesBuffer.Creature->x_pos -CREATURE_WIDTH/2,
-                                     CreaturesBuffer.Creature->y_pos - CREATURE_HEIGHT/2),
-                                     __FUNCTION__); 
+        if(CreaturesBuffer.Creature->Alive==1)
+            checkDraw(tumDrawLoadedImage(CreatureExample, 
+                                         CreaturesBuffer.Creature->x_pos -CREATURE_WIDTH/2,
+                                         CreaturesBuffer.Creature->y_pos - CREATURE_HEIGHT/2),
+                                         __FUNCTION__); 
         xSemaphoreGive(CreaturesBuffer.lock);
     }
 }
@@ -525,7 +526,7 @@ void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
     xSemaphoreGive(ShipBuffer.lock);
 }
 
-void vTaskCreatureControl(void *pvParameters)
+void vTaskCreaturesShotControl(void *pvParameters)
 {
 
     while(1){
@@ -541,7 +542,7 @@ void vTaskCreatureControl(void *pvParameters)
 
 }
 
-void vTaskBunkerControl(void *pvParameters)
+void vTaskBunkerShotControl(void *pvParameters)
 {
     while(1){
         uint32_t BunkerCollisionID;
@@ -582,15 +583,22 @@ void vTaskShipBulletControl(void *pvParameters)
                                                                   ShipBuffer.Ship->bullet->y_pos,
                                                                   CreaturesBuffer.Creature);
 
-                    if(BunkerCollisionFlag || TopWallCollisionFlag){  
+                    if(BunkerCollisionFlag || TopWallCollisionFlag || CreatureCollisionFlag){  
                         ShipBuffer.Ship->bullet->BulletAliveFlag=0;
                         free(ShipBuffer.Ship->bullet);
 
                         if(BunkerCollisionFlag){  
                             printf("BunkerID: %d\n", BunkerCollisionFlag);
-                            vTaskResume(BunkerControlTask);
-                            xTaskNotify(BunkerControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                            vTaskResume(BunkerShotControlTask);
+                            xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
                         }
+
+                        else if(CreatureCollisionFlag){
+                            printf("Creature [ %d ] was killed.\n", CreatureCollisionFlag);
+                            vTaskResume(CreaturesShotControlTask);
+                            xTaskNotify(CreaturesShotControlTask, (uint32_t)CreatureCollisionFlag, eSetValueWithOverwrite);
+                        }
+
                         BunkerCollisionFlag=0;
                         TopWallCollisionFlag=0;
                         CreatureCollisionFlag=0;
@@ -713,13 +721,13 @@ int main(int argc, char *argv[])
         goto err_statemachine;
     }
     
-    if (xTaskCreate(vTaskMainMenu, "MainMenu", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES-4, &MainMenu) != pdPASS) {
+    if (xTaskCreate(vTaskMainMenu, "MainMenuTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES-4, &MainMenuTask) != pdPASS) {
         goto err_mainmenu;
     }
 
     if (xTaskCreate(vTaskGame, "MainGameTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES-4, &MainGameTask) != pdPASS) {
+                    configMAX_PRIORITIES-3, &MainGameTask) != pdPASS) {
         goto err_MainGameTask;
     }
     
@@ -747,15 +755,15 @@ int main(int argc, char *argv[])
         goto err_bunkersbuffer;
     }
 
-    if (xTaskCreate(vTaskBunkerControl, "BunkerControlTask", mainGENERIC_STACK_SIZE*2, NULL,
-                    configMAX_PRIORITIES - 5, &BunkerControlTask)!=pdPASS){
-        PRINT_ERROR("Failed to create BunkerControlTask.");
+    if (xTaskCreate(vTaskBunkerShotControl, "BunkerShotControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                    configMAX_PRIORITIES - 5, &BunkerShotControlTask)!=pdPASS){
+        PRINT_ERROR("Failed to create BunkerShotControlTask.");
         goto err_bunkercontroltask;
     }
     
-    if (xTaskCreate(vTaskCreatureControl, "CreatureControlTask", mainGENERIC_STACK_SIZE*2, NULL,
-                    configMAX_PRIORITIES - 4, &CreaturesControlTask)!=pdPASS){
-        PRINT_ERROR("Failed to create CreatureControlTask.");
+    if (xTaskCreate(vTaskCreaturesShotControl, "CreatureShotControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                    configMAX_PRIORITIES - 5, &CreaturesShotControlTask)!=pdPASS){
+        PRINT_ERROR("Failed to create CreatureShotControlTask.");
         goto err_creaturecontroltask;
     }
 
@@ -765,11 +773,11 @@ int main(int argc, char *argv[])
         goto err_creaturesbuffer;
     }
 
-    vTaskSuspend(MainMenu);
+    vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainGameTask);
     vTaskSuspend(ShipBulletTask);
-    vTaskSuspend(BunkerControlTask);
-    vTaskSuspend(CreaturesControlTask);
+    vTaskSuspend(BunkerShotControlTask);
+    vTaskSuspend(CreaturesShotControlTask);
 
     
     vTaskStartScheduler();
@@ -778,9 +786,9 @@ int main(int argc, char *argv[])
 
 
 err_creaturesbuffer:
-    vTaskDelete(CreaturesControlTask);
+    vTaskDelete(CreaturesShotControlTask);
 err_creaturecontroltask:
-    vTaskDelete(BunkerControlTask);
+    vTaskDelete(BunkerShotControlTask);
 err_bunkercontroltask:
     vSemaphoreDelete(BunkersBuffer.lock);
 err_bunkersbuffer:
@@ -792,7 +800,7 @@ err_playerinfo:
 err_shipbuffer:
     vTaskDelete(MainGameTask);
 err_MainGameTask:
-    vTaskDelete(MainMenu);
+    vTaskDelete(MainMenuTask);
 err_mainmenu:
     vTaskDelete(StateMachine);
 err_statemachine:

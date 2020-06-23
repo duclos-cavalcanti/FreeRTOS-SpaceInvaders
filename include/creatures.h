@@ -67,6 +67,8 @@ typedef struct creature_t{
     signed short x_pos;
     signed short y_pos;
 
+    unsigned char Alive;
+
     signed short speed;
     bullet_t* bullet;
 
