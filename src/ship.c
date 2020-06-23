@@ -6,6 +6,7 @@
 #include "main.h"
 #include "bunkers.h"
 
+#include "TUM_Draw.h"
 
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed,
                    unsigned int ShipColor, signed short size)
@@ -27,17 +28,21 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
 }
 
 
-void vIncrementShipLeft(ship_t* ship)
+
+void CreateBunkerCollisionStatus(ship_t* ship)
 {
-    ship->x_pos-=ship->speed;
+    BunkerCollisionStatus_t* BunkerCollisionStatus = calloc(1, sizeof(BunkerCollisionStatus_t));
+
+    if(!BunkerCollisionStatus){
+        fprintf(stderr,"Creating BCS failed. \n");
+        exit(EXIT_FAILURE);
+    }
+    
+    BunkerCollisionStatus->BunkerID = NONE;
+    BunkerCollisionStatus->HIT = 0;
+
+    ship->BunkerCollisionStatus = BunkerCollisionStatus;
 }
-
-void vIncrementShipRight(ship_t* ship)
-{
-    ship->x_pos+=ship->speed;
-}
-
-
 void CreateBullet(ship_t* ship)
 {
     
@@ -53,7 +58,21 @@ void CreateBullet(ship_t* ship)
     ShipBullet->BulletAliveFlag=1;
 
     ship->bullet = ShipBullet; 
+}
 
+void vIncrementShipLeft(ship_t* ship)
+{
+    ship->x_pos-=ship->speed;
+}
+
+void vIncrementShipRight(ship_t* ship)
+{
+    ship->x_pos+=ship->speed;
+}
+
+void vUpdateShipBulletPos(ship_t* ship)
+{
+    ship->bullet->y_pos-=ship->bullet->speed;
 }
 
 void vDrawShipBullet(ship_t* ship)
@@ -64,20 +83,10 @@ void vDrawShipBullet(ship_t* ship)
                           __FUNCTION__);
 }
 
-void vUpdateShipBulletPos(ship_t* ship)
+unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos)
 {
-    ship->bullet->y_pos-=ship->bullet->speed;
-}
-
-unsigned char xCheckShipBulletCollisionTopWall(ship_t* ship)
-{
-    if(ship->bullet->y_pos<=10) return 1;
+    if(b_ypos<=10) return 1;
     else return 0;
 
 }
 
-
-unsigned char xCheckShipBulletCollision(ship_t* ship)
-{
-    return xCheckShipBulletCollisionTopWall(ship);
-}

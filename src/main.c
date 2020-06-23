@@ -509,14 +509,24 @@ void vTaskBunkerControl(void *pvParameters)
 }
 void vTaskShipBulletControl(void *pvParameters)
 {
+    static unsigned char TopWallCollisionFlag=0;
+    static unsigned char BunkerCollisionFlag=0;
 
     while(1){
         uint32_t BulletLaunchSignal;
 
         if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
             vUpdateShipBulletPos(ShipBuffer.Ship);
-            if (xCheckShipBulletCollision(ShipBuffer.Ship))
+            BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
+                                                       ShipBuffer.Ship->bullet->y_pos);
+
+            TopWallCollisionFlag=xCheckShipBulletCollisionTopWall(ShipBuffer.Ship->bullet->y_pos);
+
+            if (BunkerCollisionFlag || TopWallCollisionFlag){  
                 ShipBuffer.Ship->bullet->BulletAliveFlag=0;
+                free(ShipBuffer.Ship->bullet);
+                printf("FLAG: %d\n", BunkerCollisionFlag);
+            }
         }
     }
 
@@ -526,6 +536,8 @@ void vTaskGame(void *pvParameters)
     PlayerShip=tumDrawLoadImage("../resources/player.bmp");
     ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
                                 Green, SHIPSIZE);
+
+    CreateBunkerCollisionStatus(ShipBuffer.Ship);
 
     PlayerInfoBuffer.LivesLeft = 3;
     PlayerInfoBuffer.Level = 1;    

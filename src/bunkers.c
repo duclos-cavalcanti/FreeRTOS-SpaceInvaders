@@ -4,6 +4,20 @@
 
 #include "bunkers.h"
 #include "main.h"
+#include "ship.h"
+
+
+#define B1_LEFT_LIMIT B1_X_POS - BUNKER_SIDE_SIZE/2
+#define B1_RIGHT_LIMIT B1_X_POS + BUNKER_SIDE_SIZE/2
+
+#define B2_LEFT_LIMIT B2_X_POS - BUNKER_SIDE_SIZE/2
+#define B2_RIGHT_LIMIT B2_X_POS + BUNKER_SIDE_SIZE/2
+
+#define B3_LEFT_LIMIT B3_X_POS - BUNKER_SIDE_SIZE/2
+#define B3_RIGHT_LIMIT B3_X_POS + BUNKER_SIDE_SIZE/2
+
+#define B4_LEFT_LIMIT B4_X_POS - BUNKER_SIDE_SIZE/2
+#define B4_RIGHT_LIMIT B4_X_POS + BUNKER_SIDE_SIZE/2
 
 
 SingleBunker_t* CreateSingleBunker(signed short x_pos, signed short y_pos,
@@ -29,7 +43,6 @@ bunkers_t* CreateBunkers()
    SingleBunker_t* b2=CreateSingleBunker(B2_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
    SingleBunker_t* b3=CreateSingleBunker(B3_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
    SingleBunker_t* b4=CreateSingleBunker(B4_X_POS,BUNKERS_Y_POS,BUNKER_COLOR, BUNKER_SIDE_SIZE);
-   printf("Bunkers Y_POS: %d\n",BUNKERS_Y_POS);
 
     bunkers_t* Bunkers = calloc(1,sizeof(bunkers_t));
     if(!Bunkers){
@@ -50,10 +63,38 @@ bunkers_t* CreateBunkers()
     return Bunkers;
 }
 
-unsigned char xCheckBunkersCollision(ship_t* ship)
+unsigned char xCheckBunkerTopSideCollision(signed short b_xpos)
 {
-    
-    return 1;
+    return 0;
+}
+
+unsigned char xCheckBunkerLowSideCollision(signed short b_xpos)
+{   
+    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT) 
+        return B1;
+
+    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT) 
+        return B2;
+
+    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT) 
+        return B3;
+
+    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT) 
+        return B4;
+    else
+        return NONE;
+}
+
+unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos)
+{
+    if(b_ypos >= BUNKERS_LOWERLIMIT){  
+        if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos);
+        else return 0;
+    }
+    else if(b_ypos <= BUNKERS_UPPERLIMIT)
+        return xCheckBunkerTopSideCollision(b_xpos);
+    else
+        return 0;
 }
 
 void vUpdateBunkersStatus(bunkers_t* bunkers)

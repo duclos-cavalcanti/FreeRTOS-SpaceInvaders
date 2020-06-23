@@ -14,7 +14,16 @@
 #define B3_X_POS SCREEN_WIDTH*5/8
 #define B4_X_POS SCREEN_WIDTH*7/8
 
-#define BUNKERS_LOWERLIMIT BUNKERS_Y_POS + BUNKER_SIDE_SIZE
+#define BUNKERS_LOWERLIMIT BUNKERS_Y_POS + BUNKER_SIDE_SIZE/2
+#define BUNKERS_UPPERLIMIT BUNKERS_Y_POS - BUNKER_SIDE_SIZE/2
+
+typedef enum Bunkers_ID_t{
+    NONE,
+    B1,
+    B2,
+    B3,
+    B4
+}Bunkers_ID_t;
 
 typedef struct SingleBunker_t{
     signed short x_pos;
@@ -43,7 +52,7 @@ typedef struct bunkers_t{
 
 bunkers_t* CreateBunkers();
 
-unsigned char xCheckBunkersCollision(ship_t* ship);
+unsigned char xCheckBunkersCollision(signed short bullet_xpos, signed short bullet_ypos);
 void vUpdateBunkersStatus(bunkers_t* bunkers);
 
 #endif
