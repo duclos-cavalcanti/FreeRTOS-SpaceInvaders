@@ -23,13 +23,15 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
     PlayerShip->x_pos = initial_x;
     PlayerShip->y_pos = initial_y;
     PlayerShip->speed = speed;
+    
+    PlayerShip->BunkerCollisionStatus=CreateBunkerCollisionStatus();
 
     return PlayerShip;
 }
 
 
 
-void CreateBunkerCollisionStatus(ship_t* ship)
+BunkerCollisionStatus_t* CreateBunkerCollisionStatus()
 {
     BunkerCollisionStatus_t* BunkerCollisionStatus = calloc(1, sizeof(BunkerCollisionStatus_t));
 
@@ -41,7 +43,7 @@ void CreateBunkerCollisionStatus(ship_t* ship)
     BunkerCollisionStatus->BunkerID = NONE;
     BunkerCollisionStatus->HIT = 0;
 
-    ship->BunkerCollisionStatus = BunkerCollisionStatus;
+    return BunkerCollisionStatus;
 }
 void CreateBullet(ship_t* ship)
 {
@@ -78,7 +80,7 @@ void vUpdateShipBulletPos(ship_t* ship)
 void vDrawShipBullet(ship_t* ship)
 {
     checkDraw(tumDrawLine(ship->bullet->x_pos, ship->bullet->y_pos,
-                         ship->bullet->x_pos, ship->bullet->y_pos+10,
+                         ship->bullet->x_pos, ship->bullet->y_pos+SHIP_BULLET_LENGTH,
                           SHIP_BULLET_THICKNESS,Green),
                           __FUNCTION__);
 }
