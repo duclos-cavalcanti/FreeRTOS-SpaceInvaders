@@ -392,29 +392,35 @@ void vDrawLives()
 void vDrawBunkers()
 {
     if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){  
-        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2, 
-                                   BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2,
-                                   BunkersBuffer.Bunkers->b1->size, BunkersBuffer.Bunkers->b1->size,
-                                   BunkersBuffer.Bunkers->b1->color),
-                                   __FUNCTION__);
 
-        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2, 
-                                   BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2,
-                                   BunkersBuffer.Bunkers->b2->size, BunkersBuffer.Bunkers->b2->size,
-                                   BunkersBuffer.Bunkers->b2->color),
-                                   __FUNCTION__);
+        if(BunkersBuffer.Bunkers->b1Lives>0)
+            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2, 
+                                       BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2,
+                                       BunkersBuffer.Bunkers->b1->size, BunkersBuffer.Bunkers->b1->size,
+                                       BunkersBuffer.Bunkers->b1->color),
+                                       __FUNCTION__);
 
-        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2, 
-                                   BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2,
-                                   BunkersBuffer.Bunkers->b3->size, BunkersBuffer.Bunkers->b3->size,
-                                   BunkersBuffer.Bunkers->b3->color),
-                                   __FUNCTION__);
+        if(BunkersBuffer.Bunkers->b2Lives>0)
+            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2, 
+                                       BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2,
+                                       BunkersBuffer.Bunkers->b2->size, BunkersBuffer.Bunkers->b2->size,
+                                       BunkersBuffer.Bunkers->b2->color),
+                                       __FUNCTION__);
 
-        checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2, 
-                                   BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2,
-                                   BunkersBuffer.Bunkers->b4->size, BunkersBuffer.Bunkers->b4->size,
-                                   BunkersBuffer.Bunkers->b4->color),
-                                   __FUNCTION__);
+        if(BunkersBuffer.Bunkers->b3Lives>0)
+            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2, 
+                                       BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2,
+                                       BunkersBuffer.Bunkers->b3->size, BunkersBuffer.Bunkers->b3->size,
+                                       BunkersBuffer.Bunkers->b3->color),
+                                       __FUNCTION__);
+
+        if(BunkersBuffer.Bunkers->b4Lives>0)
+            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2, 
+                                       BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2,
+                                       BunkersBuffer.Bunkers->b4->size, BunkersBuffer.Bunkers->b4->size,
+                                       BunkersBuffer.Bunkers->b4->color),
+                                       __FUNCTION__);
+
         xSemaphoreGive(BunkersBuffer.lock);
     }
 }
@@ -495,11 +501,12 @@ void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
 void vTaskBunkerControl(void *pvParameters)
 {
     while(1){
-        uint32_t BulletCollisionSignal;
+        uint32_t BullerCollisionID;
 
-       if(xTaskNotifyWait(0x00, 0xffffffff, &BulletCollisionSignal, portMAX_DELAY)==pdTRUE){
+       if(xTaskNotifyWait(0x00, 0xffffffff, &BullerCollisionID, portMAX_DELAY)==pdTRUE){
            if(xSemaphoreTake(BunkersBuffer.lock,portMAX_DELAY)==pdTRUE){
-                vUpdateBunkersStatus(BunkersBuffer.Bunkers);
+                vUpdateBunkersStatus(BunkersBuffer.Bunkers, 
+                                     BullerCollisionID);
                 xSemaphoreGive(BunkersBuffer.lock);
            }
        }
@@ -507,6 +514,7 @@ void vTaskBunkerControl(void *pvParameters)
     }
 
 }
+
 void vTaskShipBulletControl(void *pvParameters)
 {
     static unsigned char TopWallCollisionFlag=0;
@@ -525,7 +533,11 @@ void vTaskShipBulletControl(void *pvParameters)
             if (BunkerCollisionFlag || TopWallCollisionFlag){  
                 ShipBuffer.Ship->bullet->BulletAliveFlag=0;
                 free(ShipBuffer.Ship->bullet);
-                printf("FLAG: %d\n", BunkerCollisionFlag);
+                if(BunkerCollisionFlag){  
+                    printf("BunkerID: %d\n", BunkerCollisionFlag);
+                    vTaskResume(BunkerControlTask);
+                    xTaskNotify(BunkerControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                }
             }
         }
     }

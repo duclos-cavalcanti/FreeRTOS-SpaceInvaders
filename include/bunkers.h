@@ -36,16 +36,16 @@ typedef struct SingleBunker_t{
 
 typedef struct bunkers_t{
     SingleBunker_t* b1;
-    unsigned short b1Lives;
+    signed short b1Lives;
 
     SingleBunker_t* b2;
-    unsigned short b2Lives;
+    signed short b2Lives;
 
     SingleBunker_t* b3;
-    unsigned short b3Lives;
+    signed short b3Lives;
     
     SingleBunker_t* b4;
-    unsigned short b4Lives;
+    signed short b4Lives;
 
 }bunkers_t;
 
@@ -53,6 +53,6 @@ typedef struct bunkers_t{
 bunkers_t* CreateBunkers();
 
 unsigned char xCheckBunkersCollision(signed short bullet_xpos, signed short bullet_ypos);
-void vUpdateBunkersStatus(bunkers_t* bunkers);
+void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID);
 
 #endif

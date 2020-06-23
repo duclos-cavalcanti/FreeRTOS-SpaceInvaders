@@ -91,13 +91,37 @@ unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos)
         if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos);
         else return 0;
     }
-    else if(b_ypos <= BUNKERS_UPPERLIMIT)
-        return xCheckBunkerTopSideCollision(b_xpos);
+    else if(b_ypos <= BUNKERS_UPPERLIMIT){
+        if(b_ypos+SHIP_BULLET_SPEED >= BUNKERS_UPPERLIMIT) return xCheckBunkerTopSideCollision(b_xpos);
+        else return 0;
+    }
     else
         return 0;
 }
 
-void vUpdateBunkersStatus(bunkers_t* bunkers)
+void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID)
 {
+    switch(bunkerID){
+        case B1:
+            bunkers->b1Lives--;
+            printf("B1 remaining lives: %d\n", bunkers->b1Lives);
+            break;
+        case B2:
+            bunkers->b2Lives--;
+            printf("B2 remaining lives: %d\n", bunkers->b2Lives);
+            break;
+        case B3:
+            bunkers->b3Lives--;
+            printf("B3 remaining lives: %d\n", bunkers->b3Lives);
+            break;
+        case B4:
+            bunkers->b4Lives--;
+            printf("B4 remaining lives: %d\n", bunkers->b4Lives);
+            break;
 
+        case NONE:
+        default: 
+            break;
+    }
+    
 }
