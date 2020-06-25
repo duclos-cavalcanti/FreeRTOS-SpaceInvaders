@@ -2,32 +2,51 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "TUM_Draw.h"
 #include "creatures.h"
 #include "main.h"
 #include "ship.h"
 
-creature_t* CreateCreature(signed short x_pos, signed short y_pos,
+#define NUMB_OF_CREATURES 2
+
+creature_t* CreateCreatures()
+{
+    creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t));
+
+    if(!CreatureArray){
+        fprintf(stderr, "Failed to creature arrays.");
+        exit(EXIT_FAILURE);
+    }
+
+    unsigned short i=0; 
+
+    while(i<NUMB_OF_CREATURES){
+        CreatureArray[i]=CreateSingleCreature(SCREEN_WIDTH/2 + i*40,SCREEN_HEIGHT/2,
+                                              MEDIUM, i);
+        ++i;
+    }
+
+    return CreatureArray;
+
+}
+
+creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
                            classes_t CreatureType, creatureIDS_t ID)
 {
-    creature_t* creature = calloc(1,sizeof(creature_t));
+    creature_t creature; 
 
-    if(!creature){
-        fprintf(stderr,"Failed creating creature.\n");
-        exit(EXIT_FAILURE);
-
-    }
-    creature->x_pos=x_pos;
-    creature->y_pos=y_pos;
-    creature->speed=SPEED;
-
-    creature->Alive=1;
-    creature->CreatureType=CreatureType;
-    creature->CreatureID=ID;
+    creature.x_pos=x_pos;
+    creature.y_pos=y_pos;
+    creature.speed=SPEED;
+    creature.Alive=1;
+    creature.CreatureType=CreatureType;
+    creature.CreatureID=ID;
+    creature.Position=Position0;
 
     return creature;
 }
 
-unsigned char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
+signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
                                      creature_t* creature)
 {
     signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2;
@@ -37,14 +56,20 @@ unsigned char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
 
     if(LEFT_LIMIT <= x_pos && x_pos <= RIGHT_LIMIT)
         if(y_pos - SHIP_BULLET_SPEED <= LOWER_LIMIT)
-            return 1;
-        else return 0;
-
+            return creature->CreatureID;
+        else return -1;
     else
-        return 0; 
+        return -1;
 }
 
 void vUpdateCreatureStatus(creature_t* creature, unsigned char creatureID)
 {
    creature->Alive=0; 
 }
+
+void vAlternateAnimation(creature_t* creature)
+{
+    if(creature->Position == Position0) creature->Position=Position1;
+    else creature->Position=Position0;
+}
+

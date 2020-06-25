@@ -18,7 +18,7 @@
 #define BUNKERS_UPPERLIMIT BUNKERS_Y_POS - BUNKER_SIDE_SIZE/2
 
 typedef enum Bunkers_ID_t{
-    NONE,
+    NONEXISTENT_BUNKER,
     B1,
     B2,
     B3,

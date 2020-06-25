@@ -82,7 +82,7 @@ unsigned char xCheckBunkerLowSideCollision(signed short b_xpos)
     else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT) 
         return B4;
     else
-        return NONE;
+        return NONEXISTENT_BUNKER;
 }
 
 unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos)
@@ -119,7 +119,7 @@ void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID)
             printf("B4 remaining lives: %d\n", bunkers->b4Lives);
             break;
 
-        case NONE:
+        case NONEXISTENT_BUNKER:
         default: 
             break;
     }

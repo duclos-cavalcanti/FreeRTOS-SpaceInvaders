@@ -40,7 +40,7 @@ BunkerCollisionStatus_t* CreateBunkerCollisionStatus()
         exit(EXIT_FAILURE);
     }
     
-    BunkerCollisionStatus->BunkerID = NONE;
+    BunkerCollisionStatus->BunkerID = NONEXISTENT_BUNKER;
     BunkerCollisionStatus->HIT = 0;
 
     return BunkerCollisionStatus;

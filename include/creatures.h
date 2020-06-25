@@ -10,7 +10,6 @@
 #define SPEED 5
 
 typedef enum creatureIDS_t{
-    ZERO,
     CreatureONE,
     CreatureTWO,
     CreatureTHREE,
@@ -53,8 +52,13 @@ typedef enum creatureIDS_t{
     CreatureFOURTY
 }creatureIDS_t;
 
+typedef enum Position_t{
+    Position0,
+    Position1
+}Position_t;
+
 typedef enum classes_t{
-    NONEXISTENT,
+    NONEXISTENT_CLASS,
     EASY,
     MEDIUM,
     HARD
@@ -66,21 +70,24 @@ typedef struct creature_t{
 
     signed short x_pos;
     signed short y_pos;
-
+    
+    
     unsigned char Alive;
+    Position_t Position;
 
     signed short speed;
     bullet_t* bullet;
 
 }creature_t;
 
-creature_t* CreateCreature(signed short x_pos, signed short y_pos,
+creature_t* CreateCreatures();
+creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
                            classes_t CreatureType, creatureIDS_t ID);
 
-unsigned char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
+signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
                                      creature_t* creature);
 
 void vUpdateCreatureStatus(creature_t* creature, unsigned char ID);
-
+void vAlternateAnimation(creature_t* creature);
 #endif 
 
