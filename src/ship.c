@@ -80,7 +80,7 @@ void vUpdateShipBulletPos(ship_t* ship)
 void vDrawShipBullet(ship_t* ship)
 {
     checkDraw(tumDrawLine(ship->bullet->x_pos, ship->bullet->y_pos,
-                         ship->bullet->x_pos, ship->bullet->y_pos+SHIP_BULLET_LENGTH,
+                          ship->bullet->x_pos, ship->bullet->y_pos+SHIP_BULLET_LENGTH,
                           SHIP_BULLET_THICKNESS,Green),
                           __FUNCTION__);
 }
@@ -89,6 +89,5 @@ unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos)
 {
     if(b_ypos<=10) return 1;
     else return 0;
-
 }
 

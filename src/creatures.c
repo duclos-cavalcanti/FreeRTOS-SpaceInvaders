@@ -17,9 +17,12 @@ creature_t* CreateCreatures()
     }
 
     unsigned short CreatureCountID=0; 
+    unsigned short CreatureDistance_X=0;
+
     while(CreatureCountID<NUMB_OF_CREATURES){
-        CreatureArray[CreatureCountID]=CreateSingleCreature(SCREEN_WIDTH/2 + CreatureCountID*40,
-                                                            SCREEN_HEIGHT/2,
+        CreatureDistance_X = CREATURE_X_DIST_APART*CreatureCountID;
+        CreatureArray[CreatureCountID]=CreateSingleCreature(CREATURE_X_ROW_BEGIN + CreatureDistance_X,
+                                                            CREATURE_Y_ROW_BEGIN,
                                                             MEDIUM, CreatureCountID);
         ++CreatureCountID;
     }
@@ -63,15 +66,15 @@ signed char xCheckCreaturesCollision(creature_t creatures[],
     return -1;
 }
 
-signed char xCheckSingleCreatureCollision(signed short x_pos, signed short y_pos,
+signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                           creature_t* creature)
 {
-    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2;
-    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2;
+    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
     signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
 
-    if(LEFT_LIMIT <= x_pos && x_pos <= RIGHT_LIMIT)
-        if(y_pos - SHIP_BULLET_SPEED <= LOWER_LIMIT)
+    if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
+        if(bullet_y <= LOWER_LIMIT)
             return creature->CreatureID;
         else return -1;
     else
@@ -81,7 +84,6 @@ signed char xCheckSingleCreatureCollision(signed short x_pos, signed short y_pos
 void vKillCreature(creature_t* creature, unsigned char creatureID)
 {
    creature->Alive=0; 
-   printf("Creature Killed.\n");
 }
 
 void vAlternateAnimation(creature_t* creature)
@@ -94,13 +96,13 @@ unsigned char xFetchCreatureValue(unsigned char creatureclassID)
 {
     switch(creatureclassID){
         case EASY:
-            return 20;
+            return 10;
             break;
         case MEDIUM:
-            return 40;
+            return 20;
             break;
         case HARD:
-            return 80;
+            return 30;
             break;
         case NONEXISTENT_CLASS:
         default:

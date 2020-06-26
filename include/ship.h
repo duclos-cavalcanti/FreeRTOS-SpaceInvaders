@@ -5,7 +5,7 @@
 
 #define SHIP_BULLET_SPEED 8
 #define SHIP_Y_OFFSET 5
-#define SHIP_BULLET_THICKNESS 5
+#define SHIP_BULLET_THICKNESS 3
 #define SHIP_BULLET_LENGTH 10
 
 typedef struct BunkerCollisionStatus_t{

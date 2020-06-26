@@ -56,7 +56,7 @@ static TaskHandle_t MainGameTask = NULL;
 static TaskHandle_t ShipBulletTask = NULL;
 static TaskHandle_t BunkerShotControlTask = NULL;
 static TaskHandle_t CreaturesShotControlTask = NULL;
-static TaskHandle_t CreaturesMovementControlTask = NULL;
+static TaskHandle_t CreaturesActionControlTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -281,7 +281,7 @@ void vStateMachine(void *pvParameters){
                         break;
                     case STATE_TWO:
                         if(MainMenuTask) vTaskSuspend(MainMenuTask);
-                        if(CreaturesMovementControlTask) vTaskResume(CreaturesMovementControlTask);
+                        if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
                         if(MainGameTask) vTaskResume(MainGameTask);
                         break;
                     case STATE_THREE:
@@ -658,7 +658,8 @@ void vTaskShipBulletControl(void *pvParameters)
     }
 
 }
-void vTaskCreaturesMovementControl(void *pvParameters)
+
+void vTaskCreaturesActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 500;
@@ -846,10 +847,10 @@ int main(int argc, char *argv[])
         goto err_creaturesbuffer;
     }
 
-    if(xTaskCreate(vTaskCreaturesMovementControl, "CreaturesMovementControl", mainGENERIC_STACK_SIZE*2, NULL,
-                   configMAX_PRIORITIES - 3, &CreaturesMovementControlTask)!=pdPASS){
+    if(xTaskCreate(vTaskCreaturesActionControl, "CreaturesActionControl", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 3, &CreaturesActionControlTask)!=pdPASS){
         PRINT_ERROR("Failed to create CreaturesMovmentControlTask.");
-        goto err_creaturecontrolmovementtask;
+        goto err_creaturecontrolactiontask;
     }
 
     vTaskSuspend(MainMenuTask);
@@ -857,14 +858,14 @@ int main(int argc, char *argv[])
     vTaskSuspend(ShipBulletTask);
     vTaskSuspend(BunkerShotControlTask);
     vTaskSuspend(CreaturesShotControlTask);
-    vTaskSuspend(CreaturesMovementControlTask);
+    vTaskSuspend(CreaturesActionControlTask);
 
     
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
-err_creaturecontrolmovementtask:
+err_creaturecontrolactiontask:
     vSemaphoreDelete(CreaturesBuffer.lock);
 err_creaturesbuffer:
     vTaskDelete(CreaturesShotControlTask);

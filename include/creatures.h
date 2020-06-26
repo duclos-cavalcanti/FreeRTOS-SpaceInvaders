@@ -7,7 +7,11 @@
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
 #define CREATURE_Y_POS SCREEN_HEIGHT*50/100
 
-#define NUMB_OF_CREATURES 2
+#define CREATURE_Y_ROW_BEGIN SCREEN_HEIGHT*1/2
+#define CREATURE_X_ROW_BEGIN SCREEN_WIDTH*1/6
+#define CREATURE_X_DIST_APART 60
+
+#define NUMB_OF_CREATURES 8
 #define SPEED 5
 
 typedef enum creatureIDS_t{
@@ -83,13 +87,13 @@ typedef struct creature_t{
 
 creature_t* CreateCreatures();
 creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
-                           classes_t CreatureType, creatureIDS_t ID);
+                                classes_t CreatureType, creatureIDS_t ID);
 
 signed char xCheckCreaturesCollision(creature_t creatures[],
                                      signed short bullet_x,
                                      signed short bullet_y);
 
-signed char xCheckSingleCreatureCollision(signed short x_pos, signed short y_pos,
+signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                           creature_t* creature);
 
 void vKillCreature(creature_t* creature, unsigned char ID);
