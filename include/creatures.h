@@ -7,6 +7,7 @@
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
 #define CREATURE_Y_POS SCREEN_HEIGHT*50/100
 
+#define NUMB_OF_CREATURES 2
 #define SPEED 5
 
 typedef enum creatureIDS_t{
@@ -87,7 +88,9 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
 signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
                                      creature_t* creature);
 
-void vUpdateCreatureStatus(creature_t* creature, unsigned char ID);
+void vKillCreature(creature_t* creature, unsigned char ID);
 void vAlternateAnimation(creature_t* creature);
+
+unsigned char xFetchCreatureValue(unsigned char creatureclassID);
 #endif 
 

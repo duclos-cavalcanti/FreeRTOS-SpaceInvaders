@@ -89,6 +89,7 @@ static ShipBuffer_t ShipBuffer = { 0 };
 typedef struct PlayerBuffer_t{
     unsigned short LivesLeft;
     unsigned short Level;
+    unsigned short Score;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
 static PlayerBuffer_t PlayerInfoBuffer = { 0 };
@@ -294,6 +295,13 @@ void vStateMachine(void *pvParameters){
      }
 }
 
+void vUpdatePlayerScore(unsigned char CreatureID)
+{
+    static unsigned char AddOn=0;
+    AddOn = xFetchCreatureValue(CreatureID);
+    PlayerInfoBuffer.Score+=AddOn;
+}
+
 void vDrawStaticTexts(void)
 {
     char Score_1[100];   
@@ -301,34 +309,37 @@ void vDrawStaticTexts(void)
     char Hi_Score[100];   
     
     static int Score1_Width,Score2_Width,HiScoreWidth=0;
-
-    sprintf(Score_1,
-            "SCORE [1]");
-    sprintf(Score_2,
-            "SCORE [2]");
-    sprintf(Hi_Score,
-            "HI-SCORE");
     
-    if(!tumGetTextSize((char *)Score_1,&Score1_Width, NULL)){
-                    checkDraw(tumDrawText(Score_1,
-                                            SCREEN_WIDTH*1/8-Score1_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
-                                            White),
-                                            __FUNCTION__);
-                }
-    
-    if(!tumGetTextSize((char *)Score_2,&Score2_Width, NULL)){
-                    checkDraw(tumDrawText(Score_2,
-                                            SCREEN_WIDTH*7/8-Score2_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
-                                            White),
-                                            __FUNCTION__);
-                }
-    if(!tumGetTextSize((char *)Hi_Score,&HiScoreWidth, NULL)){
-                    checkDraw(tumDrawText(Hi_Score,
-                                            SCREEN_WIDTH*2/4-HiScoreWidth/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
-                                            White),
-                                            __FUNCTION__);
-                }
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
 
+        sprintf(Score_1,
+                "P1-SCORE [ %d ]", PlayerInfoBuffer.Score);
+        sprintf(Score_2,
+                "P2-SCORE [ 0 ]");
+        sprintf(Hi_Score,
+                "HI-SCORE");
+
+        if(!tumGetTextSize((char *)Score_1,&Score1_Width, NULL)){
+                        checkDraw(tumDrawText(Score_1,
+                                                SCREEN_WIDTH*1/8-Score1_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
+                                                White),
+                                                __FUNCTION__);
+                    }
+        
+        if(!tumGetTextSize((char *)Score_2,&Score2_Width, NULL)){
+                        checkDraw(tumDrawText(Score_2,
+                                                SCREEN_WIDTH*7/8-Score2_Width/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
+                                                White),
+                                                __FUNCTION__);
+                    }
+        if(!tumGetTextSize((char *)Hi_Score,&HiScoreWidth, NULL)){
+                        checkDraw(tumDrawText(Hi_Score,
+                                                SCREEN_WIDTH*2/4-HiScoreWidth/2,SCREEN_HEIGHT*1/25-DEFAULT_FONT_SIZE/2,
+                                                White),
+                                                __FUNCTION__);
+                    }
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
 }
 void vDrawMainMenu(void)
 {
@@ -355,6 +366,9 @@ void vTaskMainMenu(void *pvParameters)
     TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t UpdatePeriod = 20;
+
+    PlayerInfoBuffer.Score=0;
+
 
     while (1) {
         if(DrawSignal)
@@ -414,26 +428,29 @@ void vDrawLives()
 }
 
 void vDrawSingleCreature(unsigned char creatureID)
-{
-    
-    if(CreaturesBuffer.Creatures->Alive==1){
-        if(CreaturesBuffer.Creatures->Position)
-            checkDraw(tumDrawLoadedImage(CreatureMEDIUM_1,
-                                         CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
-                                         CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
-                                         __FUNCTION__); 
-        else
-            checkDraw(tumDrawLoadedImage(CreatureMEDIUM_0,
-                                         CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
-                                         CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
-                                         __FUNCTION__); 
-    }
+{    
+    if(CreaturesBuffer.Creatures[creatureID].Position)
+        checkDraw(tumDrawLoadedImage(CreatureMEDIUM_1,
+                                     CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
+                                     CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
+                                     __FUNCTION__); 
+    else
+        checkDraw(tumDrawLoadedImage(CreatureMEDIUM_0,
+                                     CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
+                                     CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
+                                     __FUNCTION__); 
 }
 void vDrawCreatures()
 {
+    unsigned char creatureIDcount=0;
+
     if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-        vDrawSingleCreature(CreatureONE);
-        vDrawSingleCreature(CreatureTWO);
+
+        while(creatureIDcount<NUMB_OF_CREATURES){ 
+            if(CreaturesBuffer.Creatures[creatureIDcount].Alive==1)
+                vDrawSingleCreature(creatureIDcount);
+            ++creatureIDcount;
+        }
         xSemaphoreGive(CreaturesBuffer.lock);
     }
 }
@@ -555,8 +572,13 @@ void vTaskCreaturesShotControl(void *pvParameters)
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-                vUpdateCreatureStatus(&CreaturesBuffer.Creatures[CreatureCollisionID],
-                                      CreatureCollisionID);
+                vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
+                              CreatureCollisionID);
+
+                if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
+                    xSemaphoreGive(PlayerInfoBuffer.lock);
+                }
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
        } 
@@ -621,10 +643,6 @@ void vTaskShipBulletControl(void *pvParameters)
                             vTaskResume(CreaturesShotControlTask);
                             xTaskNotify(CreaturesShotControlTask, (uint32_t)CreatureCollisionFlag, eSetValueWithOverwrite);
                         }
-
-                        BunkerCollisionFlag=0;
-                        TopWallCollisionFlag=0;
-                        CreatureCollisionFlag=0;
                     }
 
                     xSemaphoreGive(CreaturesBuffer.lock);
@@ -644,12 +662,19 @@ void vTaskCreaturesMovementControl(void *pvParameters)
 
     CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
     CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
-
+    
+    static unsigned char creatureIDcount=0;
                             
     while(1){
+        creatureIDcount=0;
+
         if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-            vAlternateAnimation(&CreaturesBuffer.Creatures[CreatureONE]);
-            vAlternateAnimation(&CreaturesBuffer.Creatures[CreatureTWO]);
+            while(creatureIDcount < NUMB_OF_CREATURES){ 
+                if(CreaturesBuffer.Creatures[creatureIDcount].Alive == 1)
+                    vAlternateAnimation(&CreaturesBuffer.Creatures[creatureIDcount]);
+
+                ++creatureIDcount;
+            }
             xSemaphoreGive(CreaturesBuffer.lock);
         }
          

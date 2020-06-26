@@ -7,7 +7,6 @@
 #include "main.h"
 #include "ship.h"
 
-#define NUMB_OF_CREATURES 2
 
 creature_t* CreateCreatures()
 {
@@ -62,9 +61,10 @@ signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
         return -1;
 }
 
-void vUpdateCreatureStatus(creature_t* creature, unsigned char creatureID)
+void vKillCreature(creature_t* creature, unsigned char creatureID)
 {
    creature->Alive=0; 
+   printf("Creature Killed.\n");
 }
 
 void vAlternateAnimation(creature_t* creature)
@@ -73,3 +73,20 @@ void vAlternateAnimation(creature_t* creature)
     else creature->Position=Position0;
 }
 
+unsigned char xFetchCreatureValue(unsigned char creatureclassID)
+{
+    switch(creatureclassID){
+        case EASY:
+            return 20;
+            break;
+        case MEDIUM:
+            return 40;
+            break;
+        case HARD:
+            return 80;
+            break;
+        case NONEXISTENT_CLASS:
+        default:
+            return 0;
+    }
+}
