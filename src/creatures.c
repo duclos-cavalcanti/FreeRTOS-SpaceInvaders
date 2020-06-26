@@ -11,18 +11,17 @@
 creature_t* CreateCreatures()
 {
     creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t));
-
     if(!CreatureArray){
         fprintf(stderr, "Failed to creature arrays.");
         exit(EXIT_FAILURE);
     }
 
-    unsigned short i=0; 
-
-    while(i<NUMB_OF_CREATURES){
-        CreatureArray[i]=CreateSingleCreature(SCREEN_WIDTH/2 + i*40,SCREEN_HEIGHT/2,
-                                              MEDIUM, i);
-        ++i;
+    unsigned short CreatureCountID=0; 
+    while(CreatureCountID<NUMB_OF_CREATURES){
+        CreatureArray[CreatureCountID]=CreateSingleCreature(SCREEN_WIDTH/2 + CreatureCountID*40,
+                                                            SCREEN_HEIGHT/2,
+                                                            MEDIUM, CreatureCountID);
+        ++CreatureCountID;
     }
 
     return CreatureArray;
@@ -45,12 +44,30 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
     return creature;
 }
 
-signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
-                                     creature_t* creature)
+signed char xCheckCreaturesCollision(creature_t creatures[],
+                                     signed short bullet_x_pos,
+                                     signed short bullet_y_pos)
+{   
+    unsigned char CreatureCount=0;
+    signed  char CreatureCollisionID=0;
+
+    while(CreatureCount<NUMB_OF_CREATURES){
+       CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
+                                                         bullet_y_pos,
+                                                         &creatures[CreatureCount]);
+
+       if(CreatureCollisionID>=0) return CreatureCollisionID;
+       ++CreatureCount;
+    }
+
+    return -1;
+}
+
+signed char xCheckSingleCreatureCollision(signed short x_pos, signed short y_pos,
+                                          creature_t* creature)
 {
     signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2;
     signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2;
-
     signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
 
     if(LEFT_LIMIT <= x_pos && x_pos <= RIGHT_LIMIT)

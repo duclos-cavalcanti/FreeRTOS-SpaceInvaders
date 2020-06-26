@@ -388,6 +388,10 @@ void vTaskMainMenu(void *pvParameters)
                 }
         }
 }
+void vPlayDeadCreatureSound()
+{
+    tumSoundPlaySample(g5);
+}
 void vPlayBunkerShotSound()
 {
     tumSoundPlaySample(f5);
@@ -574,6 +578,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
             if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
                 vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
                               CreatureCollisionID);
+                vPlayDeadCreatureSound();
 
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
                     vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
@@ -624,9 +629,9 @@ void vTaskShipBulletControl(void *pvParameters)
                     TopWallCollisionFlag=xCheckShipBulletCollisionTopWall(ShipBuffer.Ship->bullet->y_pos);
 
                 
-                    CreatureCollisionFlag=xCheckCreatureCollision(ShipBuffer.Ship->bullet->x_pos,
-                                                                  ShipBuffer.Ship->bullet->y_pos,
-                                                                  &CreaturesBuffer.Creatures[CreatureONE]);
+                    CreatureCollisionFlag=xCheckCreaturesCollision(CreaturesBuffer.Creatures,
+                                                                   ShipBuffer.Ship->bullet->x_pos,
+                                                                   ShipBuffer.Ship->bullet->y_pos);
 
                     if(BunkerCollisionFlag || TopWallCollisionFlag || (CreatureCollisionFlag >=0)){  
                         ShipBuffer.Ship->bullet->BulletAliveFlag=0;

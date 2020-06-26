@@ -85,8 +85,12 @@ creature_t* CreateCreatures();
 creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
                            classes_t CreatureType, creatureIDS_t ID);
 
-signed char xCheckCreatureCollision(signed short x_pos, signed short y_pos,
-                                     creature_t* creature);
+signed char xCheckCreaturesCollision(creature_t creatures[],
+                                     signed short bullet_x,
+                                     signed short bullet_y);
+
+signed char xCheckSingleCreatureCollision(signed short x_pos, signed short y_pos,
+                                          creature_t* creature);
 
 void vKillCreature(creature_t* creature, unsigned char ID);
 void vAlternateAnimation(creature_t* creature);
