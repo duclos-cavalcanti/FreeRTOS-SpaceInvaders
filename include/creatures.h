@@ -3,6 +3,7 @@
 #define __creatures_H__
 
 #include "ship.h"
+#include "main.h"
 
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
 #define CREATURE_Y_POS SCREEN_HEIGHT*50/100
@@ -11,8 +12,11 @@
 #define CREATURE_X_ROW_BEGIN SCREEN_WIDTH*1/6
 #define CREATURE_X_DIST_APART 60
 
+#define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
+
+#define NUMB_IN_ROW 8
 #define NUMB_OF_CREATURES 8
-#define SPEED 5
+#define CREATURE_SPEED 1
 
 typedef enum creatureIDS_t{
     CreatureONE,
@@ -69,18 +73,22 @@ typedef enum classes_t{
     HARD
 }classes_t;
 
+typedef enum H_Movement_t{
+    RIGHT,
+    LEFT
+}H_Movement_t;
+
 typedef struct creature_t{
     classes_t CreatureType;
     creatureIDS_t CreatureID;
 
     signed short x_pos;
     signed short y_pos;
-    
+    signed short speed;
     
     unsigned char Alive;
-    Position_t Position;
 
-    signed short speed;
+    Position_t Position;
     bullet_t* bullet;
 
 }creature_t;
@@ -89,7 +97,7 @@ creature_t* CreateCreatures();
 creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
                                 classes_t CreatureType, creatureIDS_t ID);
 
-signed char xCheckCreaturesCollision(creature_t creatures[],
+signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x,
                                      signed short bullet_y);
 
@@ -98,6 +106,8 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
 
 void vKillCreature(creature_t* creature, unsigned char ID);
 void vAlternateAnimation(creature_t* creature);
+
+void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
 
 unsigned char xFetchCreatureValue(unsigned char creatureclassID);
 #endif 

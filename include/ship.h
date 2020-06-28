@@ -3,6 +3,9 @@
 
 #include "bunkers.h"
 
+#define SHIPSIZE 20
+#define SHIPSPEED 4
+
 #define SHIP_BULLET_SPEED 8
 #define SHIP_Y_OFFSET 5
 #define SHIP_BULLET_THICKNESS 3

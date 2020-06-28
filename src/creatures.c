@@ -4,7 +4,6 @@
 
 #include "TUM_Draw.h"
 #include "creatures.h"
-#include "main.h"
 #include "ship.h"
 
 
@@ -38,74 +37,162 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
 
     creature.x_pos=x_pos;
     creature.y_pos=y_pos;
-    creature.speed=SPEED;
-    creature.Alive=1;
-    creature.CreatureType=CreatureType;
-    creature.CreatureID=ID;
-    creature.Position=Position0;
+    creature.speed=CREATURE_SPEED;
 
-    return creature;
+    creature.Alive=1;
+creature.CreatureType=CreatureType;
+creature.CreatureID=ID;
+creature.Position=Position0;
+
+return creature;
 }
 
-signed char xCheckCreaturesCollision(creature_t creatures[],
-                                     signed short bullet_x_pos,
-                                     signed short bullet_y_pos)
+signed char xCheckCreaturesCollision(creature_t* creatures,
+                                 signed short bullet_x_pos,
+                                 signed short bullet_y_pos)
 {   
-    unsigned char CreatureCount=0;
-    signed  char CreatureCollisionID=0;
+unsigned char CreatureCount=0;
+signed  char CreatureCollisionID=0;
 
-    while(CreatureCount<NUMB_OF_CREATURES){
-       CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
-                                                         bullet_y_pos,
-                                                         &creatures[CreatureCount]);
+while(CreatureCount<NUMB_OF_CREATURES){
+    if(creatures[CreatureCount].Alive==1){
+        CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
+                                                          bullet_y_pos,
+                                                          &creatures[CreatureCount]);
 
-       if(CreatureCollisionID>=0) return CreatureCollisionID;
-       ++CreatureCount;
+        if(CreatureCollisionID>=0) return CreatureCollisionID;
     }
+   ++CreatureCount;
+}
 
-    return -1;
+return -1;
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
-                                          creature_t* creature)
+                                      creature_t* creature)
 {
-    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
-    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
-    signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
+signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
 
-    if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
-        if(bullet_y <= LOWER_LIMIT)
-            return creature->CreatureID;
-        else return -1;
-    else
-        return -1;
+if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
+    if(bullet_y <= LOWER_LIMIT)
+        return creature->CreatureID;
+    else return -1;
+else
+    return -1;
 }
 
 void vKillCreature(creature_t* creature, unsigned char creatureID)
 {
-   creature->Alive=0; 
+creature->Alive=0; 
 }
 
 void vAlternateAnimation(creature_t* creature)
 {
-    if(creature->Position == Position0) creature->Position=Position1;
-    else creature->Position=Position0;
+if(creature->Position == Position0) creature->Position=Position1;
+else creature->Position=Position0;
 }
 
 unsigned char xFetchCreatureValue(unsigned char creatureclassID)
 {
-    switch(creatureclassID){
-        case EASY:
-            return 10;
-            break;
-        case MEDIUM:
-            return 20;
-            break;
-        case HARD:
-            return 30;
-            break;
-        case NONEXISTENT_CLASS:
-        default:
-            return 0;
+switch(creatureclassID){
+    case EASY:
+        return 10;
+        break;
+    case MEDIUM:
+        return 20;
+        break;
+    case HARD:
+        return 30;
+        break;
+    case NONEXISTENT_CLASS:
+    default:
+        return 0;
+}
+}
+
+unsigned char xCheckLeftEdgeDistance(signed short x_pos)
+{
+    if(x_pos - CREATURE_SPEED <=  CREATURE_WIDTH/2) return 1;
+    else return 0;
+}
+
+unsigned char xCheckRightEdgeDistance(signed short x_pos)
+{
+    if(x_pos + CREATURE_SPEED >= CREATURE_MIN_DIST_WALL) return 1;
+    else return 0;
+}
+
+H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION)
+{ 
+    signed short creature_count;
+    if(DIRECTION == RIGHT){
+        creature_count=NUMB_IN_ROW -1;
+        while(creature_count >= 0){
+            if(creatures[creature_count].Alive==1){
+                if(xCheckRightEdgeDistance(creatures[creature_count].x_pos))
+                    return LEFT;
+                else 
+                    return RIGHT;
+                }
+
+            --creature_count;
+            } 
+        }
+    else if(DIRECTION == LEFT){ 
+        creature_count=0;
+        while(creature_count<NUMB_IN_ROW){  
+            if(creatures[creature_count].Alive==1){
+                if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos))
+                    return RIGHT;
+                else 
+                    return LEFT;
+            }
+            ++creature_count;
+        }
+    }
+
+    return DIRECTION;
+}
+void vMoveSingleCreatureLeftHorizontal(creature_t* creature)
+{
+    creature->x_pos-=creature->speed;
+}
+
+void vMoveSingleCreatureRightHorizontal(creature_t* creature)
+{
+    creature->x_pos+=creature->speed;    
+}
+
+void vMoveCreaturesLeftHorizontal(creature_t* creatures)
+{
+    unsigned char CreatureCountID = 0;
+    while(CreatureCountID<NUMB_OF_CREATURES){
+        if(creatures[CreatureCountID].Alive==1)
+            vMoveSingleCreatureLeftHorizontal(&creatures[CreatureCountID]);
+        ++CreatureCountID;
+    }
+
+}
+
+void vMoveCreaturesRightHorizontal(creature_t* creatures)
+{
+    unsigned char CreatureCountID = 0;
+    while(CreatureCountID<NUMB_OF_CREATURES){
+        if(creatures[CreatureCountID].Alive==1)
+            vMoveSingleCreatureRightHorizontal(&creatures[CreatureCountID]);
+        ++CreatureCountID;
     }
 }
+void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
+{
+    (*DIRECTION) = xCheckDirectionOfRow(creatures, (*DIRECTION));
+
+    if((*DIRECTION) == RIGHT)
+        vMoveCreaturesRightHorizontal(creatures);
+    else 
+        vMoveCreaturesLeftHorizontal(creatures);
+
+}
+

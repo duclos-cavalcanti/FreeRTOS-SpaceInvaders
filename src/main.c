@@ -45,9 +45,6 @@
 #define NEXT_TASK 0
 #define PREV_TASK 1
 
-#define SHIPSIZE 20
-#define SHIPSPEED 2
-
 #define WALLTHICKNESS 3
 #define WALLPOSITION SCREEN_HEIGHT*95/100
 
@@ -89,6 +86,7 @@ static ShipBuffer_t ShipBuffer = { 0 };
 typedef struct PlayerBuffer_t{
     unsigned short LivesLeft;
     unsigned short Level;
+    unsigned short HiScore;
     unsigned short Score;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
@@ -102,6 +100,7 @@ static BunkersBuffer_t BunkersBuffer = { 0 };
 
 typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
+    H_Movement_t H_Movement;
     SemaphoreHandle_t lock;
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
@@ -300,6 +299,7 @@ void vUpdatePlayerScore(unsigned char CreatureID)
     static unsigned char AddOn=0;
     AddOn = xFetchCreatureValue(CreatureID);
     PlayerInfoBuffer.Score+=AddOn;
+    PlayerInfoBuffer.HiScore+=AddOn;
 }
 
 void vDrawStaticTexts(void)
@@ -317,7 +317,7 @@ void vDrawStaticTexts(void)
         sprintf(Score_2,
                 "P2-SCORE [ 0 ]");
         sprintf(Hi_Score,
-                "HI-SCORE");
+                "HI-SCORE [ %d ]", PlayerInfoBuffer.HiScore);
 
         if(!tumGetTextSize((char *)Score_1,&Score1_Width, NULL)){
                         checkDraw(tumDrawText(Score_1,
@@ -366,7 +366,9 @@ void vTaskMainMenu(void *pvParameters)
     TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t UpdatePeriod = 20;
+    
 
+    PlayerInfoBuffer.HiScore=0;
     PlayerInfoBuffer.Score=0;
 
 
@@ -458,7 +460,19 @@ void vDrawCreatures()
         xSemaphoreGive(CreaturesBuffer.lock);
     }
 }
+void vAnimateCreatures()
+{
+    unsigned char creatureIDcount = 0;
 
+    while(creatureIDcount < NUMB_OF_CREATURES){      
+
+        if(CreaturesBuffer.Creatures[creatureIDcount].Alive == 1)
+            vAlternateAnimation(&CreaturesBuffer.Creatures[creatureIDcount]);
+
+        ++creatureIDcount;
+    }
+
+}
 void vDrawBunkers()
 {
     if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){  
@@ -621,6 +635,7 @@ void vTaskShipBulletControl(void *pvParameters)
         if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
             if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){   
                 if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){   
+
                     vUpdateShipBulletPos(ShipBuffer.Ship);
 
                     BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
@@ -662,30 +677,32 @@ void vTaskShipBulletControl(void *pvParameters)
 void vTaskCreaturesActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t UpdatePeriod = 500;
+    TickType_t xPrevAnimatedTime = 0;
+
+    const TickType_t AnimationPeriod = 500;
+    const TickType_t WakeRate = 15;
     
     CreaturesBuffer.Creatures = CreateCreatures();
+    CreaturesBuffer.H_Movement = RIGHT;
 
     CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
     CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
-    
-    static unsigned char creatureIDcount=0;
                             
     while(1){
-        creatureIDcount=0;
-
+        
         if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-            while(creatureIDcount < NUMB_OF_CREATURES){ 
-                if(CreaturesBuffer.Creatures[creatureIDcount].Alive == 1)
-                    vAlternateAnimation(&CreaturesBuffer.Creatures[creatureIDcount]);
 
-                ++creatureIDcount;
+            if(xTaskGetTickCount() - xPrevAnimatedTime >= AnimationPeriod){   
+                vAnimateCreatures(); 
+                xPrevAnimatedTime = xTaskGetTickCount();
             }
-            xSemaphoreGive(CreaturesBuffer.lock);
+        vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement);
+
+        xSemaphoreGive(CreaturesBuffer.lock);
         }
-         
+
         vTaskDelayUntil(&xLastWakeTime, 
-                        pdMS_TO_TICKS(UpdatePeriod));
+                        pdMS_TO_TICKS(WakeRate));
     }
 }
 void vTaskGame(void *pvParameters)
