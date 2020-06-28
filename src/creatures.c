@@ -74,9 +74,10 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
 signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
 signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
 signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
+signed short UPPER_LIMIT = creature->y_pos - CREATURE_HEIGHT/2;
 
 if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
-    if(bullet_y <= LOWER_LIMIT)
+    if(bullet_y <= LOWER_LIMIT && bullet_y >= UPPER_LIMIT)
         return creature->CreatureID;
     else return -1;
 else
