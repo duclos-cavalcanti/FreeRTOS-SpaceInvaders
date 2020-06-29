@@ -38,7 +38,7 @@ typedef struct ship_t{
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed, 
                    unsigned int ShipColor, signed short size);
 
-void CreateBullet(ship_t* ship);
+void CreateShipBullet(ship_t* ship);
 BunkerCollisionStatus_t* CreateBunkerCollisionStatus();
 
 unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos);

@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "TUM_Draw.h"
 #include "creatures.h"
@@ -40,11 +41,22 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
     creature.speed=CREATURE_SPEED;
 
     creature.Alive=1;
-creature.CreatureType=CreatureType;
-creature.CreatureID=ID;
-creature.Position=Position0;
+    creature.CreatureType=CreatureType;
+    creature.CreatureID=ID;
+    creature.Position=Position0;
 
 return creature;
+}
+bullet_t CreateCreateSingleBullet(creature_t* creature)
+{
+    bullet_t CreatureBullet;
+
+    CreatureBullet.x_pos=creature->x_pos;
+    CreatureBullet.y_pos=creature->y_pos + CREATURE_HEIGHT/2;
+    CreatureBullet.speed=CREATURE_BULLET_SPEED;
+    CreatureBullet.BulletAliveFlag=1;
+
+    return CreatureBullet;
 }
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -197,3 +209,55 @@ void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
 
 }
 
+unsigned char xCheckCreatureChoice(creature_t* creatures, unsigned char ChoiceID)
+{
+   if(creatures[ChoiceID].Alive == 1)
+       return 1;
+   else
+       return 0;
+}
+
+unsigned int xChooseCreature(creature_t* creatures)
+{
+    unsigned int Choice=0;
+    unsigned short ChoiceMade=0;
+
+    while(ChoiceMade==0){
+        Choice = rand()%NUMB_OF_COLUMNS;
+
+        if(xCheckCreatureChoice(creatures, Choice))
+            ChoiceMade=1;
+    }
+    
+    return Choice;
+}
+void vCreateCreaturesBullet(creature_t* creatures, 
+                             bullet_t* CreatureBullet)
+{
+    unsigned int CreatureChoiceID=0;
+    CreatureChoiceID = xChooseCreature(creatures);
+    (*CreatureBullet)=CreateCreateSingleBullet(&creatures[CreatureChoiceID]);
+}
+
+void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet)
+{
+    CreaturesBullet->y_pos+=CreaturesBullet->speed;
+}
+
+void vDrawCreaturesBullet(bullet_t* CreatureBullet)
+{
+    checkDraw(tumDrawLine(CreatureBullet->x_pos, 
+                          CreatureBullet->y_pos,
+                          CreatureBullet->x_pos, 
+                          CreatureBullet->y_pos+SHIP_BULLET_LENGTH,
+                          CREAT_BULLET_THICKNESS,
+                          White),
+                          __FUNCTION__);
+}
+
+unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short b_ypos)
+{
+    
+    if(b_ypos>=BOTTOM_WALLPOSITION - BOTTOM_WALLTHICKNESS/2 - CREATURE_BULLET_SPEED) return 1;
+    else return 0;
+}

@@ -45,8 +45,6 @@
 #define NEXT_TASK 0
 #define PREV_TASK 1
 
-#define WALLTHICKNESS 3
-#define WALLPOSITION SCREEN_HEIGHT*95/100
 
 static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainGameTask = NULL;
@@ -54,6 +52,7 @@ static TaskHandle_t ShipBulletTask = NULL;
 static TaskHandle_t BunkerShotControlTask = NULL;
 static TaskHandle_t CreaturesShotControlTask = NULL;
 static TaskHandle_t CreaturesActionControlTask = NULL;
+static TaskHandle_t CreaturesBulletControlTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -100,10 +99,55 @@ static BunkersBuffer_t BunkersBuffer = { 0 };
 
 typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
-    H_Movement_t H_Movement;
+    bullet_t CreaturesBullet;
+    unsigned short BulletAliveFlag;
+    
+    unsigned short NumbOfActivecolumns;
+    H_Movement_t H_Movement[5];
+    V_Movement_t V_Movement[5];
     SemaphoreHandle_t lock;
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
+
+void vSetPlayersInfoBufferValues()
+{
+    xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
+
+        PlayerInfoBuffer.LivesLeft = 3;
+        PlayerInfoBuffer.Level = 1;    
+
+    xSemaphoreGive(PlayerInfoBuffer.lock);
+}
+void vSetShipsBufferValues()
+{
+    xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY);
+
+        ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
+                                    Green, SHIPSIZE);
+    xSemaphoreGive(ShipBuffer.lock);
+
+}
+void vSetCreaturesBufferValues()
+{
+    xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY);
+
+        CreaturesBuffer.Creatures = CreateCreatures();
+        CreaturesBuffer.H_Movement[Row_1] = RIGHT;
+        CreaturesBuffer.V_Movement[Row_1] = DOWN;
+        CreaturesBuffer.BulletAliveFlag=0;
+        CreaturesBuffer.NumbOfActivecolumns=NUMB_OF_COLUMNS;
+
+    xSemaphoreGive(CreaturesBuffer.lock);
+}
+
+void vSetBunkersBufferValues()
+{
+    xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY);
+
+        BunkersBuffer.Bunkers = CreateBunkers();
+
+    xSemaphoreGive(BunkersBuffer.lock);
+}
 
 void xGetButtonInput(void)
 {
@@ -510,9 +554,9 @@ void vDrawBunkers()
 }
 void vDrawLowerWall()
 {
-    checkDraw(tumDrawLine(0, WALLPOSITION,
-                          SCREEN_WIDTH, WALLPOSITION,
-                          WALLTHICKNESS,Green),
+    checkDraw(tumDrawLine(0, BOTTOM_WALLPOSITION,
+                          SCREEN_WIDTH, BOTTOM_WALLPOSITION,
+                          BOTTOM_WALLTHICKNESS,Green),
                           __FUNCTION__);
 }
 void vDrawShip()
@@ -568,7 +612,20 @@ unsigned char xCheckShipMoved(void)
     return 0;
 }
 
-void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
+void vTriggerCreaturesBulletControl(unsigned char* CreaturesBulletOnScreenFlag)
+{
+   if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+       if(CreaturesBuffer.BulletAliveFlag==1){ 
+           vDrawCreaturesBullet(&CreaturesBuffer.CreaturesBullet);
+           vTaskResume(CreaturesBulletControlTask);
+           xTaskNotify(CreaturesBulletControlTask, 0x01, eSetValueWithOverwrite);
+           xSemaphoreGive(CreaturesBuffer.lock);
+       }
+       else (*CreaturesBulletOnScreenFlag)=0;
+       xSemaphoreGive(CreaturesBuffer.lock);
+   }
+}
+void vTriggerShipBulletControl(unsigned char* ShipBulletOnScreenFlag)
 {
     if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
         if(ShipBuffer.Ship->bullet->BulletAliveFlag){
@@ -577,7 +634,7 @@ void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
             xTaskNotify(ShipBulletTask, 0x01, eSetValueWithOverwrite);
             xSemaphoreGive(ShipBuffer.lock);
         }
-        else (*BulletOnScreenFlag)=0;
+        else (*ShipBulletOnScreenFlag)=0;
         xSemaphoreGive(ShipBuffer.lock);
     }
     xSemaphoreGive(ShipBuffer.lock);
@@ -585,7 +642,6 @@ void vTriggerShipBulletControl(unsigned char* BulletOnScreenFlag)
 
 void vTaskCreaturesShotControl(void *pvParameters)
 {
-
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
@@ -673,20 +729,43 @@ void vTaskShipBulletControl(void *pvParameters)
     }
 
 }
+void vTaskCreaturesBulletControl(void *pvParameters)
+{
+    static unsigned char BottomWallCollisionFlag=0;
 
+    while(1){
+        uint32_t CreatureBulletControlSignal;
+            if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureBulletControlSignal, portMAX_DELAY)==pdTRUE){
+                if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+
+                    vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
+
+                    BottomWallCollisionFlag = xCheckCreaturesBulletCollisonBottomWall(CreaturesBuffer.CreaturesBullet.y_pos);
+                                             
+                    
+                    if(BottomWallCollisionFlag){
+                        CreaturesBuffer.BulletAliveFlag=0;
+                    }
+
+                    xSemaphoreGive(CreaturesBuffer.lock);
+                }
+            }
+    }
+}
 void vTaskCreaturesActionControl(void *pvParameters)
 {
+    CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
+    CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
+
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t xPrevAnimatedTime = 0;
+    TickType_t xPrevShotTime = 0;
 
+    TickType_t ShootingPeriod = 2000;
     const TickType_t AnimationPeriod = 500;
     const TickType_t WakeRate = 15;
     
-    CreaturesBuffer.Creatures = CreateCreatures();
-    CreaturesBuffer.H_Movement = RIGHT;
-
-    CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
-    CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
+    vSetCreaturesBufferValues();
                             
     while(1){
         
@@ -696,7 +775,16 @@ void vTaskCreaturesActionControl(void *pvParameters)
                 vAnimateCreatures(); 
                 xPrevAnimatedTime = xTaskGetTickCount();
             }
-        vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement);
+            
+            vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement[Row_1]);
+         
+            if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod && CreaturesBuffer.BulletAliveFlag==0){
+                vCreateCreaturesBullet(CreaturesBuffer.Creatures, 
+                                       &CreaturesBuffer.CreaturesBullet);
+                CreaturesBuffer.BulletAliveFlag=1;
+                vPlayBulletSound();
+                xPrevShotTime = xTaskGetTickCount();
+            }
 
         xSemaphoreGive(CreaturesBuffer.lock);
         }
@@ -707,31 +795,33 @@ void vTaskCreaturesActionControl(void *pvParameters)
 }
 void vTaskGame(void *pvParameters)
 {
+    PlayerShip=tumDrawLoadImage("../resources/player.bmp");
+
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    PlayerShip=tumDrawLoadImage("../resources/player.bmp");
-    ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
-                                Green, SHIPSIZE);
+    vSetShipsBufferValues();
+    vSetBunkersBufferValues();
 
-    BunkersBuffer.Bunkers = CreateBunkers();
-
-    PlayerInfoBuffer.LivesLeft = 3;
-    PlayerInfoBuffer.Level = 1;    
-    
-
-    static unsigned char BulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
-
+    static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
+    static unsigned char CreaturesBulletOnScreenFlag = 0;
 
     while(1){
         xCheckShipMoved();
-        if(xCheckShipShoot() && BulletOnScreenFlag==0) // User wishes to shoot a bullet.
+        if(xCheckShipShoot() && ShipBulletOnScreenFlag==0) // User wishes to shoot a bullet.
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
-                CreateBullet(ShipBuffer.Ship);
+                CreateShipBullet(ShipBuffer.Ship);
                 vPlayBulletSound();
                 xSemaphoreGive(ShipBuffer.lock);
-                BulletOnScreenFlag = 1;
+                ShipBulletOnScreenFlag = 1;
             }
+
+        if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(CreaturesBuffer.BulletAliveFlag==1)
+                CreaturesBulletOnScreenFlag=1;
+            xSemaphoreGive(CreaturesBuffer.lock);
+        }
+
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
@@ -741,8 +831,10 @@ void vTaskGame(void *pvParameters)
                     vDrawShip();                    
                     vDrawCreatures();
 
-                    if(BulletOnScreenFlag)
-                        vTriggerShipBulletControl(&BulletOnScreenFlag);
+                    if(CreaturesBulletOnScreenFlag)
+                        vTriggerCreaturesBulletControl(&CreaturesBulletOnScreenFlag);
+                    if(ShipBulletOnScreenFlag)
+                        vTriggerShipBulletControl(&ShipBulletOnScreenFlag);
 
                     vDrawBunkers();
                     vDrawLowerWall();
@@ -869,6 +961,12 @@ int main(int argc, char *argv[])
         PRINT_ERROR("Failed to create CreaturesMovmentControlTask.");
         goto err_creaturecontrolactiontask;
     }
+    
+    if(xTaskCreate(vTaskCreaturesBulletControl, "CreaturesBulletControl", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 5, &CreaturesBulletControlTask)!=pdPASS){
+        PRINT_ERROR("Failed to create CreaturesBulletControlTask.");
+        goto err_creaturesbulletcontroltask;
+    }
 
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainGameTask);
@@ -876,12 +974,13 @@ int main(int argc, char *argv[])
     vTaskSuspend(BunkerShotControlTask);
     vTaskSuspend(CreaturesShotControlTask);
     vTaskSuspend(CreaturesActionControlTask);
-
+    vTaskSuspend(CreaturesBulletControlTask);
     
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
-
+err_creaturesbulletcontroltask:
+    vTaskDelete(CreaturesActionControlTask);        
 err_creaturecontrolactiontask:
     vSemaphoreDelete(CreaturesBuffer.lock);
 err_creaturesbuffer:

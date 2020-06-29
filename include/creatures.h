@@ -14,9 +14,13 @@
 
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
 
-#define NUMB_IN_ROW 8
 #define NUMB_OF_CREATURES 8
+#define NUMB_IN_ROW 8
+#define NUMB_OF_COLUMNS 8
 #define CREATURE_SPEED 1
+
+#define CREATURE_BULLET_SPEED 5
+#define CREAT_BULLET_THICKNESS 3
 
 typedef enum creatureIDS_t{
     CreatureONE,
@@ -73,6 +77,11 @@ typedef enum classes_t{
     HARD
 }classes_t;
 
+typedef enum V_Movement_t{
+    DOWN,
+    UP
+}V_Movement_t;
+
 typedef enum H_Movement_t{
     RIGHT,
     LEFT
@@ -97,12 +106,21 @@ creature_t* CreateCreatures();
 creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
                                 classes_t CreatureType, creatureIDS_t ID);
 
+void vCreateCreaturesBullet(creature_t* creatures, 
+                            bullet_t* CreatureBullets);
+
+
+void vDrawCreaturesBullet(bullet_t* CreatureBullets);
+void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet);
+
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x,
                                      signed short bullet_y);
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                           creature_t* creature);
+
+unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short y_pos);
 
 void vKillCreature(creature_t* creature, unsigned char ID);
 void vAlternateAnimation(creature_t* creature);

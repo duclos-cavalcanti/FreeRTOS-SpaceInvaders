@@ -45,7 +45,7 @@ BunkerCollisionStatus_t* CreateBunkerCollisionStatus()
 
     return BunkerCollisionStatus;
 }
-void CreateBullet(ship_t* ship)
+void CreateShipBullet(ship_t* ship)
 {
     
     bullet_t* ShipBullet = calloc(1,sizeof(bullet_t));
