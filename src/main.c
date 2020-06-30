@@ -20,6 +20,7 @@
 
 #include "AsyncIO.h"
 
+#include "utilities.h"
 #include "main.h"
 #include "ship.h"
 #include "bunkers.h"
@@ -31,20 +32,6 @@
 
 #define FPS_AVERAGE_COUNT 50
 #define FPS_FONT "IBMPlexSans-Bold.ttf"
-
-#define STATE_DEBOUNCE_DELAY 1000
-
-#define STATE_ONE 0
-#define STATE_TWO 1
-#define STATE_THREE 2
-
-#define STATE_COUNT 2
-#define STATE_Q_LEN 1
-#define BEGIN STATE_ONE
-
-#define NEXT_TASK 0
-#define PREV_TASK 1
-
 
 static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainGameTask = NULL;
@@ -76,6 +63,18 @@ typedef struct buttons_buffer {
     SemaphoreHandle_t lock;
 } buttons_buffer_t;
 static buttons_buffer_t buttons = { 0 };
+
+typedef struct GameStateBuffer_t{
+    GameState_t GameState;
+    SemaphoreHandle_t lock; 
+}GameStateBuffer_t;
+static GameStateBuffer_t GameStateBuffer;
+
+typedef struct MainMenuInfoBuffer_t{
+    SelectedMenuOption_t SelectedMenuOption; 
+    SemaphoreHandle_t lock;
+}MainMenuInfoBuffer_t;
+static MainMenuInfoBuffer_t MainMenuInfoBuffer = { 0 };
 
 typedef struct ShipBuffer_t{
     ship_t* Ship;
@@ -110,10 +109,20 @@ typedef struct CreaturesBuffer_t{
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
 
+void vSetMainMenuBufferValues()
+{
+    xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY);
+
+        MainMenuInfoBuffer.SelectedMenuOption=SinglePlayer;
+
+    xSemaphoreGive(MainMenuInfoBuffer.lock);
+}
 void vSetPlayersInfoBufferValues()
 {
     xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
 
+        PlayerInfoBuffer.HiScore=0;
+        PlayerInfoBuffer.Score=0;
         PlayerInfoBuffer.LivesLeft = 3;
         PlayerInfoBuffer.Level = 1;    
 
@@ -279,19 +288,30 @@ void ChangeMyState(volatile unsigned char* state, unsigned char forwards)
 
 }
 
-void vCheckSM_Input()
+void vCheckForStateMachineActivation()
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(E)]){
-                    buttons.buttons[KEYCODE(E)]=0; //reset its value (Debouncing)
-                    if(StateQueue){
-                        xSemaphoreGive(buttons.lock);
-                        xQueueSend(StateQueue,&nextstate_signal, 0);
-                    }
-                xSemaphoreGive(buttons.lock);
-            }
-            xSemaphoreGive(buttons.lock);
+    unsigned char AuthorizeStateChange=0;
+
+    if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
+        switch(GameStateBuffer.GameState){
+            case MainMenu:
+                break; 
+            case Game:
+                break;
+            case Paused:
+                break;
+            case GameOver:
+                break;
+            default:
+                break; 
+        
+        }
+        xSemaphoreGive(GameStateBuffer.lock);
     }
+
+    if(StateQueue && AuthorizeStateChange==1)
+        xQueueSend(StateQueue,&nextstate_signal, 0);
+
 }
 
 void vStateMachine(void *pvParameters){
@@ -333,6 +353,11 @@ void vStateMachine(void *pvParameters){
 
                     default:
                         break;
+                }
+                if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    GameStateBuffer.GameState=current_state;
+                    printf("Game State: %d\n", GameStateBuffer.GameState);
+                    xSemaphoreGive(GameStateBuffer.lock);
                 }
                 changed_state=0; //Resets changed state
             }
@@ -388,48 +413,114 @@ void vDrawStaticTexts(void)
 }
 void vDrawMainMenu(void)
 {
-    char PlayerOptions[100];
-    static int PlayerOptionsWidth=0;
+    static char SingleplayerChar[20];
+    static char MultiplayerChar[20];
+    static int SingleplayerCharWidth=0;
+    static int MultiplayerCharWidth=0;   
 
+    static char QuitChar[20];
+    static int QuitCharWidth=0;
 
-    sprintf(PlayerOptions,"1 or 2 PLAYERS");
-    if(!tumGetTextSize((char *)PlayerOptions,&PlayerOptionsWidth, NULL)){
-                    checkDraw(tumDrawText(PlayerOptions,
-                                            SCREEN_WIDTH*2/4-PlayerOptionsWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
-                                            White),
-                                            __FUNCTION__);
-    }
+    static char PauseChar[20];
+    static int PauseCharWidth=0;
 
     checkDraw(tumDrawLoadedImage(TitleScreen,
-                                    SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
-                                    SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
-                                    __FUNCTION__);
+                                 SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
+                                 SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
+                                 __FUNCTION__);
+
+    if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){  
+
+        sprintf(SingleplayerChar,"Singleplayer");
+        if(!tumGetTextSize((char *)SingleplayerChar,&SingleplayerCharWidth, NULL)){
+                        checkDraw(tumDrawText(SingleplayerChar,
+                                              SCREEN_WIDTH*2/4-SingleplayerCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
+                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, SinglePlayer)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(MultiplayerChar,"Multiplayer");
+        if(!tumGetTextSize((char *)MultiplayerChar,&MultiplayerCharWidth, NULL)){
+                        checkDraw(tumDrawText(MultiplayerChar,
+                                              SCREEN_WIDTH*2/4-MultiplayerCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, MultiPlayer)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(QuitChar,"[Q]uit");
+        if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
+                        checkDraw(tumDrawText(QuitChar,
+                                              SCREEN_WIDTH*2/4-QuitCharWidth/2,SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
+                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, Quit)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(PauseChar,"[P]ause");
+        if(!tumGetTextSize((char *)PauseChar,&PauseCharWidth, NULL)){
+                        checkDraw(tumDrawText(PauseChar,
+                                              SCREEN_WIDTH*2/4-PauseCharWidth/2,SCREEN_HEIGHT*9.5/10-DEFAULT_FONT_SIZE/2,
+                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, Pause)),
+                                              __FUNCTION__);
+        }
+
+        xSemaphoreGive(MainMenuInfoBuffer.lock);
+    }
 }
 
+void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, unsigned char* DOWN_DEBOUNCE_STATE)
+{
+   xGetButtonInput(); 
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+
+        if (buttons.buttons[KEYCODE(DOWN)]) {
+            if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
+                if(xSemaphoreTake(MainMenuInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                    vDownMenuSelection(&MainMenuInfoBuffer.SelectedMenuOption);
+                    xSemaphoreGive(MainMenuInfoBuffer.lock);
+                }
+        }                            
+        else if (buttons.buttons[KEYCODE(UP)]) { 
+            if(buttons.buttons[KEYCODE(UP)]!=(*UP_DEBOUNCE_STATE))
+                if(xSemaphoreTake(MainMenuInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                    vUpMenuSelection(&MainMenuInfoBuffer.SelectedMenuOption);
+                    xSemaphoreGive(MainMenuInfoBuffer.lock);
+                }
+        }   
+
+        (*UP_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(UP)];
+        (*DOWN_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(DOWN)];
+        xSemaphoreGive(buttons.lock);                                                                                                                                                                
+    }   
+}
 void vTaskMainMenu(void *pvParameters)
 {
     TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t UpdatePeriod = 20;
     
+    vSetPlayersInfoBufferValues();
+    vSetMainMenuBufferValues();
 
-    PlayerInfoBuffer.HiScore=0;
-    PlayerInfoBuffer.Score=0;
-
+    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char DOWN_DEBOUNCE_STATE = 0;
 
     while (1) {
+        xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE, 
+                                  &DOWN_DEBOUNCE_STATE);
+
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
-                xGetButtonInput();
            
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
+
                     tumDrawClear(Black); 
                     vDrawStaticTexts();
                     vDrawMainMenu();
                     vDrawFPS();
+
                 xSemaphoreGive(ScreenLock);
                 xCheckQuit();
-                vCheckSM_Input();
+                vCheckForStateMachineActivation();
                 vTaskDelayUntil(&xLastWakeTime, 
                                 pdMS_TO_TICKS(UpdatePeriod));
                 }
@@ -457,7 +548,7 @@ void vPlayBulletSound()
 }
 void vDrawLevel()
 {
-    static char str[100] = { 0 };
+    static char str[20] = { 0 };
     static int strWidth = { 0 };
     if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
         sprintf(str,"Level [ %d ]", PlayerInfoBuffer.Level);
@@ -850,7 +941,6 @@ void vTaskGame(void *pvParameters)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    vSetPlayersInfoBufferValues();
     vSetShipsBufferValues();
     vSetBunkersBufferValues();
 
@@ -965,6 +1055,17 @@ int main(int argc, char *argv[])
         goto err_MainGameTask;
     }
     
+    GameStateBuffer.lock = xSemaphoreCreateMutex();
+    if(!GameStateBuffer.lock){
+        PRINT_ERROR("Failed to create Game State buffer lock.");
+        goto err_gamestatebuffer;
+    }
+    
+    MainMenuInfoBuffer.lock = xSemaphoreCreateMutex();
+    if(!MainMenuInfoBuffer.lock){
+        PRINT_ERROR("Failed to create Main Menu Info Buffer lock.");
+        goto err_mainmenuinfobuffer;
+    }
     ShipBuffer.lock = xSemaphoreCreateMutex();
     if(!ShipBuffer.lock){
         PRINT_ERROR("Failed to create Ship buffer lock.");
@@ -1058,6 +1159,10 @@ err_shipbulletcontrol:
 err_playerinfo:
     vSemaphoreDelete(ShipBuffer.lock);
 err_shipbuffer:
+    vSemaphoreDelete(MainMenuInfoBuffer.lock);
+err_mainmenuinfobuffer:
+    vSemaphoreDelete(GameStateBuffer.lock);
+err_gamestatebuffer:
     vTaskDelete(MainGameTask);
 err_MainGameTask:
     vTaskDelete(MainMenuTask);
