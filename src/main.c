@@ -53,6 +53,7 @@ static TaskHandle_t BunkerShotControlTask = NULL;
 static TaskHandle_t CreaturesShotControlTask = NULL;
 static TaskHandle_t CreaturesActionControlTask = NULL;
 static TaskHandle_t CreaturesBulletControlTask = NULL;
+static TaskHandle_t ShipShotControlTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -434,6 +435,10 @@ void vTaskMainMenu(void *pvParameters)
                 }
         }
 }
+void vPlayShipShotSound()
+{
+    tumSoundPlaySample(c3);
+}
 void vPlayBulletWallSound()
 {
     tumSoundPlaySample(d5);
@@ -644,6 +649,20 @@ void vTriggerShipBulletControl(unsigned char* ShipBulletOnScreenFlag)
     xSemaphoreGive(ShipBuffer.lock);
 }
 
+void vTaskShipShotControl(void *pvParameters)
+{
+    while(1){
+        uint32_t ShipShotSignal;
+        if(xTaskNotifyWait(0x00, 0xffffffff, &ShipShotSignal, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                vPlayShipShotSound();
+                PlayerInfoBuffer.LivesLeft-=1;
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+            }
+        }
+    }
+}
+
 void vTaskCreaturesShotControl(void *pvParameters)
 {
     while(1){
@@ -739,33 +758,45 @@ void vTaskCreaturesBulletControl(void *pvParameters)
 {
     static unsigned char BottomWallCollisionFlag=0;
     static unsigned char BunkerCollisionFlag=0;
+    static unsigned char ShipCollisonFlag=0;
 
     while(1){
         uint32_t CreatureBulletControlSignal;
             if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureBulletControlSignal, portMAX_DELAY)==pdTRUE){
                 if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)){ 
 
-                    vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
+                        vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
 
-                    BottomWallCollisionFlag = xCheckCreaturesBulletCollisonBottomWall(CreaturesBuffer.CreaturesBullet.y_pos);
+                        BottomWallCollisionFlag = xCheckCreaturesBulletCollisonBottomWall(CreaturesBuffer.CreaturesBullet.y_pos);
 
-                    BunkerCollisionFlag = xCheckBunkersCollision(CreaturesBuffer.CreaturesBullet.x_pos,
-                                                                 CreaturesBuffer.CreaturesBullet.y_pos);
-                    
-                    if(BottomWallCollisionFlag || BunkerCollisionFlag){
+                        BunkerCollisionFlag = xCheckBunkersCollision(CreaturesBuffer.CreaturesBullet.x_pos,
+                                                                     CreaturesBuffer.CreaturesBullet.y_pos);
+                        
+                        ShipCollisonFlag = xCheckCreaturesBulletShipCollision(CreaturesBuffer.CreaturesBullet.x_pos,
+                                                                              CreaturesBuffer.CreaturesBullet.y_pos,
+                                                                              ShipBuffer.Ship);
 
-                        CreaturesBuffer.BulletAliveFlag=0;
+                        if(BottomWallCollisionFlag || BunkerCollisionFlag || ShipCollisonFlag){
 
-                        if(BottomWallCollisionFlag)
-                            vPlayBulletWallSound();
+                            CreaturesBuffer.BulletAliveFlag=0;
 
-                        else if(BunkerCollisionFlag){
-                            printf("BunkerID: %d\n", BunkerCollisionFlag);
-                            vTaskResume(BunkerShotControlTask);
-                            xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                            if(BottomWallCollisionFlag)
+                                vPlayBulletWallSound();
+
+                            else if(BunkerCollisionFlag){
+                                printf("BunkerID: %d\n", BunkerCollisionFlag);
+                                vTaskResume(BunkerShotControlTask);
+                                xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                            }
+                            else if(ShipCollisonFlag){  
+                                printf("Ship Hit.\n");
+                                vTaskResume(ShipShotControlTask);
+                                xTaskNotify(ShipShotControlTask, (uint32_t)ShipCollisonFlag, eSetValueWithOverwrite);
+                            }
                         }
+                        xSemaphoreGive(ShipBuffer.lock);
                     }
-
                     xSemaphoreGive(CreaturesBuffer.lock);
                 }
             }
@@ -819,6 +850,7 @@ void vTaskGame(void *pvParameters)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
+    vSetPlayersInfoBufferValues();
     vSetShipsBufferValues();
     vSetBunkersBufferValues();
 
@@ -987,6 +1019,12 @@ int main(int argc, char *argv[])
         goto err_creaturesbulletcontroltask;
     }
 
+    if(xTaskCreate(vTaskShipShotControl, "ShipShotControl", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 5, &ShipShotControlTask)!=pdPASS){
+        PRINT_ERROR("Failed to create ShipShotControlTask.") ;
+        goto err_shipshotcontroltask;
+    }
+
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainGameTask);
     vTaskSuspend(ShipBulletTask);
@@ -994,10 +1032,15 @@ int main(int argc, char *argv[])
     vTaskSuspend(CreaturesShotControlTask);
     vTaskSuspend(CreaturesActionControlTask);
     vTaskSuspend(CreaturesBulletControlTask);
+    vTaskSuspend(ShipShotControlTask);
     
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
+
+
+err_shipshotcontroltask:
+    vTaskDelete(CreaturesBulletControlTask);
 err_creaturesbulletcontroltask:
     vTaskDelete(CreaturesActionControlTask);        
 err_creaturecontrolactiontask:

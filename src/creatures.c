@@ -263,3 +263,21 @@ unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short b_ypos)
 }
 
 
+unsigned char xCheckCreaturesBulletShipCollision(signed short b_xpos,
+                                                 signed short b_ypos,
+                                                 ship_t* ship)
+{
+    signed short SHIP_LEFT_LIMIT = ship->x_pos - PLAYERSHIP_WIDTH/2; 
+    signed short SHIP_RIGHT_LIMIT = ship->x_pos + PLAYERSHIP_WIDTH/2;
+    signed short SHIP_TOP_LIMIT = ship->y_pos + PLAYERSHIP_HEIGHT/2;
+
+    if(b_xpos <= SHIP_RIGHT_LIMIT && b_xpos >= SHIP_LEFT_LIMIT)
+
+        if(b_ypos + CREATURE_BULLET_SPEED >= SHIP_TOP_LIMIT)
+            return 1;
+
+        else 
+            return 0;
+
+    else return 0;
+}

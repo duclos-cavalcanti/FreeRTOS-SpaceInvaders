@@ -122,6 +122,11 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
 
 unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short y_pos);
 
+
+unsigned char xCheckCreaturesBulletShipCollision(signed short x_pos,
+                                                 signed short y_pos,
+                                                 ship_t* ship);
+
 void vKillCreature(creature_t* creature, unsigned char ID);
 void vAlternateAnimation(creature_t* creature);
 
