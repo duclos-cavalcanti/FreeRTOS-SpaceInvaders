@@ -434,6 +434,10 @@ void vTaskMainMenu(void *pvParameters)
                 }
         }
 }
+void vPlayBulletWallSound()
+{
+    tumSoundPlaySample(d5);
+}
 void vPlayDeadCreatureSound()
 {
     tumSoundPlaySample(g5);
@@ -649,6 +653,8 @@ void vTaskCreaturesShotControl(void *pvParameters)
                 vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
                               CreatureCollisionID);
                 vPlayDeadCreatureSound();
+                //vCheckNewNumberOfOpenRows(CreaturesBuffer.Creatures, 
+                                          //&CreaturesBuffer.NumbOfActivecolumns);
 
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
                     vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
@@ -732,6 +738,7 @@ void vTaskShipBulletControl(void *pvParameters)
 void vTaskCreaturesBulletControl(void *pvParameters)
 {
     static unsigned char BottomWallCollisionFlag=0;
+    static unsigned char BunkerCollisionFlag=0;
 
     while(1){
         uint32_t CreatureBulletControlSignal;
@@ -741,10 +748,22 @@ void vTaskCreaturesBulletControl(void *pvParameters)
                     vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
 
                     BottomWallCollisionFlag = xCheckCreaturesBulletCollisonBottomWall(CreaturesBuffer.CreaturesBullet.y_pos);
-                                             
+
+                    BunkerCollisionFlag = xCheckBunkersCollision(CreaturesBuffer.CreaturesBullet.x_pos,
+                                                                 CreaturesBuffer.CreaturesBullet.y_pos);
                     
-                    if(BottomWallCollisionFlag){
+                    if(BottomWallCollisionFlag || BunkerCollisionFlag){
+
                         CreaturesBuffer.BulletAliveFlag=0;
+
+                        if(BottomWallCollisionFlag)
+                            vPlayBulletWallSound();
+
+                        else if(BunkerCollisionFlag){
+                            printf("BunkerID: %d\n", BunkerCollisionFlag);
+                            vTaskResume(BunkerShotControlTask);
+                            xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                        }
                     }
 
                     xSemaphoreGive(CreaturesBuffer.lock);

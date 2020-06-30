@@ -52,7 +52,19 @@ bunkers_t* CreateBunkers()
 
 unsigned char xCheckBunkerTopSideCollision(signed short b_xpos)
 {
-    return 0;
+    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT) 
+        return B1;
+
+    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT) 
+        return B2;
+
+    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT) 
+        return B3;
+
+    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT) 
+        return B4;
+    else
+        return NONEXISTENT_BUNKER;
 }
 
 unsigned char xCheckBunkerLowSideCollision(signed short b_xpos)

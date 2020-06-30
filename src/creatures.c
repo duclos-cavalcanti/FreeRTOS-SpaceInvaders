@@ -261,3 +261,5 @@ unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short b_ypos)
     if(b_ypos>=BOTTOM_WALLPOSITION - BOTTOM_WALLTHICKNESS/2 - CREATURE_BULLET_SPEED) return 1;
     else return 0;
 }
+
+
