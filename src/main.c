@@ -55,8 +55,11 @@ static image_handle_t CreatureMEDIUM_1 = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
 
-const unsigned char nextstate_signal=NEXT_TASK; //0
-const unsigned char prevstate_signal=PREV_TASK; //1
+const unsigned char MainMenuStateSignal=MainMenuState;
+const unsigned char GameStateSignal=GameState;
+const unsigned char PausedGameStateSignal=PausedState;
+const unsigned char GameOverStateSignal=GameOverState;
+
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -264,61 +267,62 @@ void vSwapBuffers(void *pvParameters)
     }
 }
 
-void ChangeMyState(volatile unsigned char* state, unsigned char forwards)
+unsigned char vHandleMainMenuSM()
 {
-    switch (forwards){
-        case NEXT_TASK: 
-            if(*state == STATE_COUNT){ //If its at the limit
-                *state = BEGIN; //Reset
-            }
-            else (*state)++; //Increment
-            break;
+    if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
 
-        case PREV_TASK:
-            if ((*state)==0){
-                *state = STATE_COUNT-1; //Reset
-            }
-            else (*state)--; //Decrement
-            break;
+        switch(MainMenuInfoBuffer.SelectedMenuOption){
 
-        default:
-            break;
+            case SinglePlayer:
+               return 1; 
+               break; 
 
+            case Leave:
+                exit(EXIT_SUCCESS);
+                break;
+
+            case MultiPlayer:
+            default:
+               return 0;
+               break;
+        }
+        xSemaphoreGive(MainMenuInfoBuffer.lock);
     }
-
+    return 0;
 }
-
-void vCheckForStateMachineActivation()
+void vHandleStateMachineActivation()
 {
-    unsigned char AuthorizeStateChange=0;
 
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
-            case MainMenu:
+            case MainMenuState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                if(vHandleMainMenuSM())
+                    if(StateQueue)
+                        xQueueSend(StateQueue,&GameStateSignal, 0);
                 break; 
-            case Game:
+
+            case GameState:
                 break;
-            case Paused:
+
+            case PausedState:
                 break;
-            case GameOver:
+
+            case GameOverState:
                 break;
+
             default:
                 break; 
         
         }
         xSemaphoreGive(GameStateBuffer.lock);
     }
-
-    if(StateQueue && AuthorizeStateChange==1)
-        xQueueSend(StateQueue,&nextstate_signal, 0);
-
 }
 
 void vStateMachine(void *pvParameters){
     unsigned char current_state = BEGIN;
     unsigned char changed_state = 1;
 
-    unsigned char input = 0;
     TickType_t Last_Change = 0;
     const int state_change_period = STATE_DEBOUNCE_DELAY;
 
@@ -327,9 +331,8 @@ void vStateMachine(void *pvParameters){
         if (changed_state) goto initial_state;
 
         if (StateQueue){
-            if (xQueueReceive(StateQueue,&input,portMAX_DELAY)==pdTRUE){
+            if (xQueueReceive(StateQueue,&current_state,portMAX_DELAY)==pdTRUE){
                     if(xTaskGetTickCount() - Last_Change > state_change_period){
-                        ChangeMyState(&current_state, input);
                         changed_state=1;
                         Last_Change=xTaskGetTickCount();
                     }
@@ -338,28 +341,34 @@ void vStateMachine(void *pvParameters){
 
         initial_state:
             if (changed_state){
-                switch (current_state){
-                    case STATE_ONE: // Begin 
-                        if(MainMenuTask) vTaskResume(MainMenuTask);
-                        if(MainGameTask) vTaskSuspend(MainGameTask);
-                        break;
-                    case STATE_TWO:
-                        if(MainMenuTask) vTaskSuspend(MainMenuTask);
-                        if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
-                        if(MainGameTask) vTaskResume(MainGameTask);
-                        break;
-                    case STATE_THREE:
-                        break;
+                xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY);
 
-                    default:
-                        break;
-                }
-                if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    switch (current_state){
+                        case MainMenuState: // Begin 
+                            if(MainMenuTask) vTaskResume(MainMenuTask);
+                            if(MainGameTask) vTaskSuspend(MainGameTask);
+                            break;
+
+                        case GameState:
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+                            if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
+                            if(MainGameTask) vTaskResume(MainGameTask);
+                            break;
+
+                        case PausedState:
+                            break;
+
+                        case GameOverState:
+                            break;
+
+                        default:
+                            break;
+                    }
+
                     GameStateBuffer.GameState=current_state;
-                    printf("Game State: %d\n", GameStateBuffer.GameState);
-                    xSemaphoreGive(GameStateBuffer.lock);
-                }
-                changed_state=0; //Resets changed state
+                    changed_state=0; //Resets changed state
+
+                xSemaphoreGive(GameStateBuffer.lock);
             }
      }
 }
@@ -418,11 +427,8 @@ void vDrawMainMenu(void)
     static int SingleplayerCharWidth=0;
     static int MultiplayerCharWidth=0;   
 
-    static char QuitChar[20];
-    static int QuitCharWidth=0;
-
-    static char PauseChar[20];
-    static int PauseCharWidth=0;
+    static char LeaveChar[20];
+    static int LeaveCharWidth=0;
 
     checkDraw(tumDrawLoadedImage(TitleScreen,
                                  SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
@@ -435,7 +441,7 @@ void vDrawMainMenu(void)
         if(!tumGetTextSize((char *)SingleplayerChar,&SingleplayerCharWidth, NULL)){
                         checkDraw(tumDrawText(SingleplayerChar,
                                               SCREEN_WIDTH*2/4-SingleplayerCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
-                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, SinglePlayer)),
+                                              xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, SinglePlayer)),
                                               __FUNCTION__);
         }
 
@@ -443,23 +449,15 @@ void vDrawMainMenu(void)
         if(!tumGetTextSize((char *)MultiplayerChar,&MultiplayerCharWidth, NULL)){
                         checkDraw(tumDrawText(MultiplayerChar,
                                               SCREEN_WIDTH*2/4-MultiplayerCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
-                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, MultiPlayer)),
+                                              xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, MultiPlayer)),
                                               __FUNCTION__);
         }
 
-        sprintf(QuitChar,"[Q]uit");
-        if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
-                        checkDraw(tumDrawText(QuitChar,
-                                              SCREEN_WIDTH*2/4-QuitCharWidth/2,SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
-                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, Quit)),
-                                              __FUNCTION__);
-        }
-
-        sprintf(PauseChar,"[P]ause");
-        if(!tumGetTextSize((char *)PauseChar,&PauseCharWidth, NULL)){
-                        checkDraw(tumDrawText(PauseChar,
-                                              SCREEN_WIDTH*2/4-PauseCharWidth/2,SCREEN_HEIGHT*9.5/10-DEFAULT_FONT_SIZE/2,
-                                              xWhichColorAmI(MainMenuInfoBuffer.SelectedMenuOption, Pause)),
+        sprintf(LeaveChar,"Leave");
+        if(!tumGetTextSize((char *)LeaveChar,&LeaveCharWidth, NULL)){
+                        checkDraw(tumDrawText(LeaveChar,
+                                              SCREEN_WIDTH*2/4-LeaveCharWidth/2,SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, Leave)),
                                               __FUNCTION__);
         }
 
@@ -467,7 +465,20 @@ void vDrawMainMenu(void)
     }
 }
 
-void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, unsigned char* DOWN_DEBOUNCE_STATE)
+unsigned char xCheckMenuEnterPressed()
+{
+    if(xSemaphoreTake(buttons.lock, portMAX_DELAY)==pdTRUE){
+        if(buttons.buttons[KEYCODE(RETURN)]){
+            xSemaphoreGive(buttons.lock);
+            return 1;
+        }
+        xSemaphoreGive(buttons.lock);
+        return 0;
+    }
+    return 0;
+}
+void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
+                                unsigned char* DOWN_DEBOUNCE_STATE)
 {
    xGetButtonInput(); 
     if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
@@ -507,10 +518,11 @@ void vTaskMainMenu(void *pvParameters)
     while (1) {
         xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE, 
                                   &DOWN_DEBOUNCE_STATE);
+        if(xCheckMenuEnterPressed())
+                vHandleStateMachineActivation();
 
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
-           
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
 
                     tumDrawClear(Black); 
@@ -519,13 +531,14 @@ void vTaskMainMenu(void *pvParameters)
                     vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
+
                 xCheckQuit();
-                vCheckForStateMachineActivation();
                 vTaskDelayUntil(&xLastWakeTime, 
                                 pdMS_TO_TICKS(UpdatePeriod));
                 }
         }
 }
+
 void vPlayShipShotSound()
 {
     tumSoundPlaySample(c3);
@@ -1035,7 +1048,7 @@ int main(int argc, char *argv[])
         goto err_drawsignal;
     }
     
-    StateQueue = xQueueCreate(STATE_Q_LEN, sizeof(unsigned char)); 
+    StateQueue = xQueueCreate(STATE_QUEUE_LENGTH, sizeof(unsigned char)); 
     if(!StateQueue){
         PRINT_ERROR("Could not open State Queue.");
         goto err_statequeue;

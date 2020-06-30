@@ -6,6 +6,6 @@
 void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect);
 void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect);
 
-unsigned int xWhichColorAmI(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption);
+unsigned int xFetchSelectedColor(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption);
 
 #endif

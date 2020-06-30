@@ -12,16 +12,8 @@
 
 #define STATE_DEBOUNCE_DELAY 1000
 
-#define STATE_ONE 0
-#define STATE_TWO 1
-#define STATE_THREE 2
-
-#define STATE_COUNT 2
-#define STATE_Q_LEN 1
-#define BEGIN STATE_ONE
-
-#define NEXT_TASK 0
-#define PREV_TASK 1
+#define STATE_QUEUE_LENGTH 1
+#define BEGIN MainMenuState
 
 void checkDraw(unsigned char status, const char *msg);
 
@@ -44,17 +36,16 @@ typedef enum Rows_t{
 }Rows_t;
 
 typedef enum GameState_t{
-    MainMenu,
-    Game,
-    Paused,
-    GameOver
+    MainMenuState,
+    GameState,
+    PausedState,
+    GameOverState
 }GameState_t;
 
 typedef enum SelectedMenuOption_t{
     SinglePlayer,
     MultiPlayer,
-    Quit,
-    Pause
+    Leave
 }SelectedMenuOption_t;
 
 

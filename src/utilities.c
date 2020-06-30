@@ -14,10 +14,9 @@ void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect)
     switch(*CurrentSelect){
         case SinglePlayer:
         case MultiPlayer:
-        case Quit:
             (*CurrentSelect)++;
             break;
-        case Pause:
+        case Leave:
            (*CurrentSelect) = SinglePlayer;
     }
 }
@@ -25,17 +24,16 @@ void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect)
 void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect)
 {
     switch(*CurrentSelect){
-        case Pause:        
-        case Quit:
+        case Leave:        
         case MultiPlayer:
             (*CurrentSelect)--;
             break;
         case SinglePlayer:
-           (*CurrentSelect) = Pause;
+           (*CurrentSelect) = Leave;
     }
 }
 
-unsigned int xWhichColorAmI(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption)
+unsigned int xFetchSelectedColor(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption)
 {
     if(ConsideredOption == CurrentSelect)
         return Green;
