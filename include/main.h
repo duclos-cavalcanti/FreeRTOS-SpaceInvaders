@@ -28,13 +28,15 @@ typedef enum Rows_t{
     Row_1,
     Row_2,
     Row_3,
-    Row_4
+    Row_4,
+    Row_5
 }Rows_t;
 
 #define BEGIN MainMenuState
 typedef enum GameState_t{
     MainMenuState,
     PlayingState,
+    NextLevelState,
     PausedState,
     GameOverState
 }GameState_t;

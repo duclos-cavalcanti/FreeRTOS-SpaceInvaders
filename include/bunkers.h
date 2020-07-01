@@ -64,7 +64,9 @@ typedef struct bunkers_t{
 
 bunkers_t* CreateBunkers();
 
-unsigned char xCheckBunkersCollision(signed short bullet_xpos, signed short bullet_ypos);
+unsigned char xCheckBunkersCollision(signed short bullet_xpos, signed short bullet_ypos,
+                                     bunkers_t bunkers);
+
 void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID);
 
 #endif

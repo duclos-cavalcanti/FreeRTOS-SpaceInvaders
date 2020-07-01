@@ -50,48 +50,72 @@ bunkers_t* CreateBunkers()
     return Bunkers;
 }
 
-unsigned char xCheckBunkerTopSideCollision(signed short b_xpos)
+unsigned char xCheckBunkerTopSideCollision(signed short b_xpos, bunkers_t bunkers)
 {
-    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT) 
-        return B1;
+    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT){
+        if(bunkers.b1Lives>0) 
+            return B1;
+        else return NONEXISTENT_BUNKER;
+    }
 
-    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT) 
-        return B2;
+    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT){
+        if(bunkers.b2Lives>0) 
+            return B2;
+        else return NONEXISTENT_BUNKER;
+    }
 
-    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT) 
-        return B3;
+    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT){
+        if(bunkers.b3Lives>0)
+            return B3;
+        else return NONEXISTENT_BUNKER;
+    }   
 
-    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT) 
-        return B4;
+    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT){
+        if(bunkers.b4Lives>0)
+            return B4;
+        else return NONEXISTENT_BUNKER;
+    }
     else
         return NONEXISTENT_BUNKER;
 }
 
-unsigned char xCheckBunkerLowSideCollision(signed short b_xpos)
+unsigned char xCheckBunkerLowSideCollision(signed short b_xpos, bunkers_t bunkers)
 {   
-    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT) 
-        return B1;
+    if(B1_LEFT_LIMIT <= b_xpos && b_xpos < B1_RIGHT_LIMIT){
+        if(bunkers.b1Lives>0) 
+            return B1;
+        else return NONEXISTENT_BUNKER;
+    }
 
-    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT) 
-        return B2;
+    else if(B2_LEFT_LIMIT <= b_xpos && b_xpos < B2_RIGHT_LIMIT){
+        if(bunkers.b2Lives>0) 
+            return B2;
+        else return NONEXISTENT_BUNKER;
+    }
 
-    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT) 
-        return B3;
+    else if(B3_LEFT_LIMIT <= b_xpos &&  b_xpos < B3_RIGHT_LIMIT){
+        if(bunkers.b3Lives>0)
+            return B3;
+        else return NONEXISTENT_BUNKER;
+    }   
 
-    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT) 
-        return B4;
+    else if(B4_LEFT_LIMIT <= b_xpos && b_xpos < B4_RIGHT_LIMIT){
+        if(bunkers.b4Lives>0)
+            return B4;
+        else return NONEXISTENT_BUNKER;
+    }
     else
         return NONEXISTENT_BUNKER;
 }
 
-unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos)
+unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos, bunkers_t bunkers)
 {
     if(b_ypos >= BUNKERS_LOWERLIMIT){  
-        if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos);
+        if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos, bunkers);
         else return 0;
     }
     else if(b_ypos <= BUNKERS_UPPERLIMIT){
-        if(b_ypos+SHIP_BULLET_SPEED >= BUNKERS_UPPERLIMIT) return xCheckBunkerTopSideCollision(b_xpos);
+        if(b_ypos+SHIP_BULLET_SPEED >= BUNKERS_UPPERLIMIT) return xCheckBunkerTopSideCollision(b_xpos, bunkers);
         else return 0;
     }
     else
@@ -102,20 +126,20 @@ void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID)
 {
     switch(bunkerID){
         case B1:
-            bunkers->b1Lives--;
-            printf("B1 remaining lives: %d\n", bunkers->b1Lives);
+            if(bunkers->b1Lives>0)
+                bunkers->b1Lives--;
             break;
         case B2:
-            bunkers->b2Lives--;
-            printf("B2 remaining lives: %d\n", bunkers->b2Lives);
+            if(bunkers->b2Lives>0)
+                bunkers->b2Lives--;
             break;
         case B3:
-            bunkers->b3Lives--;
-            printf("B3 remaining lives: %d\n", bunkers->b3Lives);
+            if(bunkers->b3Lives>0)
+                bunkers->b3Lives--;
             break;
         case B4:
-            bunkers->b4Lives--;
-            printf("B4 remaining lives: %d\n", bunkers->b4Lives);
+            if(bunkers->b4Lives>0)
+                bunkers->b4Lives--;
             break;
 
         case NONEXISTENT_BUNKER:
