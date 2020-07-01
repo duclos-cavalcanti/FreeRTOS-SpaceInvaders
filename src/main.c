@@ -116,7 +116,7 @@ typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
     bullet_t CreaturesBullet;
     unsigned short BulletAliveFlag;
-   
+    unsigned short NumbOfAliveCreatures;   
     unsigned short NumbOfActiveRows; 
     unsigned short NumbOfActivecolumns;
     H_Movement_t H_Movement[5];
@@ -136,6 +136,27 @@ typedef struct GameOverInfoBuffer_t{
     SemaphoreHandle_t lock;
 }GameOverInfoBuffer_t;
 static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
+
+void vPlayShipShotSound()
+{
+    tumSoundPlaySample(c3);
+}
+void vPlayBulletWallSound()
+{
+    tumSoundPlaySample(d5);
+}
+void vPlayDeadCreatureSound()
+{
+    tumSoundPlaySample(g5);
+}
+void vPlayBunkerShotSound()
+{
+    tumSoundPlaySample(f5);
+}
+void vPlayBulletSound()
+{
+    tumSoundPlaySample(a3);
+}
 
 void vSetMainMenuBufferValues()
 {
@@ -193,6 +214,7 @@ void vSetCreaturesBufferValues()
         CreaturesBuffer.H_Movement[Row_1] = RIGHT;
         CreaturesBuffer.V_Movement[Row_1] = DOWN;
         CreaturesBuffer.BulletAliveFlag=0;
+        CreaturesBuffer.NumbOfAliveCreatures=NUMB_OF_CREATURES;
         CreaturesBuffer.NumbOfActivecolumns=NUMB_OF_COLUMNS;
         CreaturesBuffer.NumbOfActiveRows=NUMB_OF_ROWS;
 
@@ -602,27 +624,6 @@ void vTaskMainMenu(void *pvParameters)
         }
 }
 
-void vPlayShipShotSound()
-{
-    tumSoundPlaySample(c3);
-}
-void vPlayBulletWallSound()
-{
-    tumSoundPlaySample(d5);
-}
-void vPlayDeadCreatureSound()
-{
-    tumSoundPlaySample(g5);
-}
-void vPlayBunkerShotSound()
-{
-    tumSoundPlaySample(f5);
-}
-void vPlayBulletSound()
-{
-    tumSoundPlaySample(a3);
-}
-
 void vDrawInstructionsWithinGame()
 {
     char QuitChar[20];
@@ -866,6 +867,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
                 vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
                               CreatureCollisionID);
                 vPlayDeadCreatureSound();
+                CreaturesBuffer.NumbOfAliveCreatures--;
                 //vCheckNewNumberOfOpenRows(CreaturesBuffer.Creatures, 
                                           //&CreaturesBuffer.NumbOfActivecolumns);
 
@@ -1022,7 +1024,10 @@ void vTaskCreaturesActionControl(void *pvParameters)
             
             vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement[Row_1]);
          
-            if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod && CreaturesBuffer.BulletAliveFlag==0){
+            if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod &&
+               CreaturesBuffer.BulletAliveFlag==0 &&
+               CreaturesBuffer.NumbOfAliveCreatures>0){
+
                 vCreateCreaturesBullet(CreaturesBuffer.Creatures, 
                                        &CreaturesBuffer.CreaturesBullet);
                 CreaturesBuffer.BulletAliveFlag=1;

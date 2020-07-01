@@ -66,63 +66,62 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
 unsigned char CreatureCount=0;
 signed  char CreatureCollisionID=0;
 
-while(CreatureCount<NUMB_OF_CREATURES){
-    if(creatures[CreatureCount].Alive==1){
-        CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
-                                                          bullet_y_pos,
-                                                          &creatures[CreatureCount]);
+    while(CreatureCount<NUMB_OF_CREATURES){
+        if(creatures[CreatureCount].Alive==1){
+            CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
+                                                              bullet_y_pos,
+                                                              &creatures[CreatureCount]);
 
-        if(CreatureCollisionID>=0) return CreatureCollisionID;
+            if(CreatureCollisionID>=0) return CreatureCollisionID;
+        }
+       ++CreatureCount;
     }
-   ++CreatureCount;
-}
-
-return -1;
+    return -1;
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                       creature_t* creature)
 {
-signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
-signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
-signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
-signed short UPPER_LIMIT = creature->y_pos - CREATURE_HEIGHT/2;
+    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+    signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
+    signed short UPPER_LIMIT = creature->y_pos - CREATURE_HEIGHT/2;
 
-if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
-    if(bullet_y <= LOWER_LIMIT && bullet_y >= UPPER_LIMIT)
-        return creature->CreatureID;
-    else return -1;
-else
-    return -1;
+    if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
+        if(bullet_y <= LOWER_LIMIT && bullet_y >= UPPER_LIMIT)
+            return creature->CreatureID;
+        else return -1;
+    else
+        return -1;
 }
 
 void vKillCreature(creature_t* creature, unsigned char creatureID)
 {
-creature->Alive=0; 
+    creature->Alive=0; 
 }
 
 void vAlternateAnimation(creature_t* creature)
 {
-if(creature->Position == Position0) creature->Position=Position1;
-else creature->Position=Position0;
+    if(creature->Position == Position0) creature->Position=Position1;
+    else creature->Position=Position0;
 }
 
 unsigned char xFetchCreatureValue(unsigned char creatureclassID)
 {
-switch(creatureclassID){
-    case EASY:
-        return 10;
-        break;
-    case MEDIUM:
-        return 20;
-        break;
-    case HARD:
-        return 30;
-        break;
-    case NONEXISTENT_CLASS:
-    default:
-        return 0;
-}
+    switch(creatureclassID){
+        case EASY:
+            return 10;
+            break;
+        case MEDIUM:
+            return 20;
+            break;
+        case HARD:
+            return 30;
+            break;
+        case NONEXISTENT_CLASS:
+        default:
+            return 0;
+    }
 }
 
 unsigned char xCheckLeftEdgeDistance(signed short x_pos)
@@ -257,7 +256,6 @@ void vDrawCreaturesBullet(bullet_t* CreatureBullet)
 
 unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short b_ypos)
 {
-    
     if(b_ypos>=BOTTOM_WALLPOSITION - BOTTOM_WALLTHICKNESS/2 - CREATURE_BULLET_SPEED) return 1;
     else return 0;
 }
@@ -272,12 +270,9 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short b_xpos,
     signed short SHIP_TOP_LIMIT = ship->y_pos + PLAYERSHIP_HEIGHT/2;
 
     if(b_xpos <= SHIP_RIGHT_LIMIT && b_xpos >= SHIP_LEFT_LIMIT)
-
         if(b_ypos + CREATURE_BULLET_SPEED >= SHIP_TOP_LIMIT)
             return 1;
-
         else 
             return 0;
-
     else return 0;
 }
