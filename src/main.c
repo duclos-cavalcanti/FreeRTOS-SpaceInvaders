@@ -52,6 +52,7 @@ static TaskHandle_t StateMachine = NULL;
 static QueueHandle_t StateQueue = NULL;
 
 static image_handle_t TitleScreen = NULL;
+static image_handle_t GameOver = NULL;
 static image_handle_t PlayerShip = NULL;
 static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
@@ -100,6 +101,7 @@ typedef struct PlayerBuffer_t{
     unsigned short Level;
     unsigned short HiScore;
     unsigned short Score;
+    unsigned short FreshGame;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
 static PlayerBuffer_t PlayerInfoBuffer = { 0 };
@@ -151,9 +153,21 @@ void vSetPlayersInfoBufferValues()
         PlayerInfoBuffer.Score=0;
         PlayerInfoBuffer.LivesLeft = 3;
         PlayerInfoBuffer.Level = 1;    
+        PlayerInfoBuffer.FreshGame=1;
 
     xSemaphoreGive(PlayerInfoBuffer.lock);
 }
+
+void vPrepareNewGameValues()
+{ 
+    xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
+        PlayerInfoBuffer.Score=0;
+        PlayerInfoBuffer.Level=1;
+        PlayerInfoBuffer.FreshGame=0;
+        PlayerInfoBuffer.LivesLeft=3;
+    xSemaphoreGive(PlayerInfoBuffer.lock);
+}
+
 void vSetOutsideGameActionsBufferValues()
 {
     xSemaphoreTake(OutsideGameActionsBuffer.lock,portMAX_DELAY);
@@ -313,6 +327,7 @@ void vHandleGameOverStateSM()
             case GoToMainMenu:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
                 if(StateQueue)
+                    vPrepareNewGameValues();
                     xQueueSend(StateQueue,&MainMenuStateSignal, 0);
 
             case RemainGameOverScreen:
@@ -427,7 +442,8 @@ void vUpdatePlayerScore(unsigned char CreatureID)
     static unsigned char AddOn=0;
     AddOn = xFetchCreatureValue(CreatureID);
     PlayerInfoBuffer.Score+=AddOn;
-    PlayerInfoBuffer.HiScore+=AddOn;
+    if(PlayerInfoBuffer.FreshGame==1 || PlayerInfoBuffer.Score > PlayerInfoBuffer.HiScore)
+        PlayerInfoBuffer.HiScore=PlayerInfoBuffer.Score;
 }
 
 void vDrawStaticTexts(void)
@@ -1238,7 +1254,13 @@ void vDrawInstructionsGameOver()
                                           __FUNCTION__);
     }
 }
-
+void vDrawGameOverBanner()
+{
+    checkDraw(tumDrawLoadedImage(GameOver,
+                                 SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(GameOver)/2 + 15,
+                                 SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(GameOver)/2),
+                                 __FUNCTION__);
+}
 unsigned char xCheckGoToMainMenuPressed()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
@@ -1255,8 +1277,11 @@ unsigned char xCheckGoToMainMenuPressed()
     }
     return 0;
 }
+
 void vTaskGameOver(void *pvParameters)
 {
+    GameOver = tumDrawLoadImage("../resources/GameOver.bmp");
+
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
@@ -1273,6 +1298,7 @@ void vTaskGameOver(void *pvParameters)
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
             
                     tumDrawClear(Black);
+                    vDrawGameOverBanner();
                     vDrawInstructionsGameOver();
                     vDrawStaticTexts();
                     vDrawLevel();
