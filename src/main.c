@@ -36,6 +36,7 @@
 static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainPlayingGameTask = NULL;
 static TaskHandle_t PausedGameTask = NULL;
+static TaskHandle_t GameOverTask = NULL;
 static TaskHandle_t ShipBulletControlTask = NULL;
 static TaskHandle_t BunkerShotControlTask = NULL;
 static TaskHandle_t CreaturesShotControlTask = NULL;
@@ -128,6 +129,12 @@ typedef struct PausedGameInfoBuffer_t{
 }PausedGameInfoBuffer_t;
 static PausedGameInfoBuffer_t PausedGameInfoBuffer = { 0 };
 
+typedef struct GameOverInfoBuffer_t{
+    GameOverActions_t GameOverActions;
+    SemaphoreHandle_t lock;
+}GameOverInfoBuffer_t;
+static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
+
 void vSetMainMenuBufferValues()
 {
     xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY);
@@ -195,6 +202,17 @@ void vSetPausedGameInfoBufferValues()
 
     xSemaphoreGive(PausedGameInfoBuffer.lock);
 }
+
+void vSetGameOverInfoBufferValues()
+{
+    xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY);
+
+        GameOverInfoBuffer.GameOverActions = RemainGameOverScreen;
+
+    xSemaphoreGive(GameOverInfoBuffer.lock);
+}
+
+
 void xGetButtonInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -288,12 +306,27 @@ void vSwapBuffers(void *pvParameters)
         }
     }
 }
+void vHandleGameOverStateSM()
+{
+    if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        switch(GameOverInfoBuffer.GameOverActions){
+            case GoToMainMenu:
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
 
+            case RemainGameOverScreen:
+            default:
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+               break; 
+        }
+        xSemaphoreGive(GameOverInfoBuffer.lock);
+    }
+}
 void vHandlePausedGameStateSM()
 {
     if(xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
         switch(PausedGameInfoBuffer.PausedGameActions){
-            
             case ResumeGame:
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
                 if(StateQueue)
@@ -313,10 +346,15 @@ void vHandlePlayingGameStateSM()
         switch(OutsideGameActionsBuffer.PlayerOutsideGameActions){
             
             case PauseGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if(StateQueue)
                     xQueueSend(StateQueue,&PausedGameStateSignal, 0);
-
+                break;
             case LostGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&GameOverStateSignal, 0);
+                break;
             case NoAction:
             default:
                break;
@@ -324,7 +362,7 @@ void vHandlePlayingGameStateSM()
         xSemaphoreGive(OutsideGameActionsBuffer.lock);
     }
 }
-void vHandleMainMenuSM()
+void vHandleMainMenuStateSM()
 {
     if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
 
@@ -357,7 +395,7 @@ void vHandleStateMachineActivation()
         switch(GameStateBuffer.GameState){
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
-                vHandleMainMenuSM();
+                vHandleMainMenuStateSM();
                 break; 
 
             case PlayingState:
@@ -371,6 +409,8 @@ void vHandleStateMachineActivation()
                 break;
 
             case GameOverState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleGameOverStateSM();
                 break;
 
             default:
@@ -381,69 +421,6 @@ void vHandleStateMachineActivation()
     }
 }
 
-void vStateMachine(void *pvParameters){
-    unsigned char current_state = BEGIN;
-    unsigned char changed_state = 1;
-
-    TickType_t Last_Change = 0;
-    const int state_change_period = STATE_DEBOUNCE_DELAY;
-
-    while(1){
-        Last_Change=xTaskGetTickCount();
-        if (changed_state) goto initial_state;
-
-        if (StateQueue){
-            if (xQueueReceive(StateQueue,&current_state,portMAX_DELAY)==pdTRUE){
-                    if(xTaskGetTickCount() - Last_Change > state_change_period){
-                        changed_state=1;
-                        Last_Change=xTaskGetTickCount();
-                    }
-            }
-        }
-
-        initial_state:
-            if (changed_state){
-                xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY);
-
-                    switch (current_state){
-
-                        case MainMenuState: // Begin 
-
-                            if(MainMenuTask) vTaskResume(MainMenuTask);
-                            if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
-                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
-                            break;
-
-                        case PlayingState:
-
-                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
-                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
-                            if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
-                            if(MainPlayingGameTask) vTaskResume(MainPlayingGameTask);
-                            break;
-
-                        case PausedState:
-
-                            if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
-                            if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
-                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
-                            if(PausedGameTask) vTaskResume(PausedGameTask);
-                            break;
-
-                        case GameOverState:
-                            break;
-
-                        default:
-                            break;
-                    }
-
-                    GameStateBuffer.GameState=current_state;
-                    changed_state=0; //Resets changed state
-
-                xSemaphoreGive(GameStateBuffer.lock);
-            }
-     }
-}
 
 void vUpdatePlayerScore(unsigned char CreatureID)
 {
@@ -1058,6 +1035,22 @@ unsigned char xRetrieveCreaturesBulletAliveFlag()
     return 0;
 }
 
+unsigned char xCheckLivesLeft()
+{
+    if (xSemaphoreTake(PlayerInfoBuffer.lock, 0) == pdTRUE){
+        if (PlayerInfoBuffer.LivesLeft == 0){
+            xSemaphoreGive(PlayerInfoBuffer.lock);
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+                OutsideGameActionsBuffer.PlayerOutsideGameActions = LostGameAction;
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                return 1;
+            }
+        }              
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+        return 0;
+    }
+    return 0;
+}
 unsigned char xCheckPausePressed()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
@@ -1101,7 +1094,7 @@ void vTaskPlayingGame(void *pvParameters)
     while(1){
         xGetButtonInput();
         xCheckQuit();
-        if(xCheckPausePressed())
+        if(xCheckPausePressed() || xCheckLivesLeft())
             vHandleStateMachineActivation();
         
         xCheckShipMoved();
@@ -1216,6 +1209,170 @@ void vTaskPausedGame(void *pvParameters)
                                 pdMS_TO_TICKS(UpdatePeriod));
             }
     }
+}
+
+void vDrawInstructionsGameOver()
+{
+
+    char QuitChar[20];
+    int QuitCharWidth=0;
+
+    char GoToMainMenuChar[20];
+    int GoToMainMenuCharWidth=0;
+
+    sprintf(GoToMainMenuChar,"[M]ain Menu");
+    if(!tumGetTextSize((char *)GoToMainMenuChar,&GoToMainMenuCharWidth, NULL)){
+                    checkDraw(tumDrawText(GoToMainMenuChar,
+                                          SCREEN_WIDTH*2/4-GoToMainMenuCharWidth/2,
+                                          SCREEN_HEIGHT*50/100 - DEFAULT_FONT_SIZE/2,
+                                          White),
+                                          __FUNCTION__);
+    }
+
+    sprintf(QuitChar,"[Q]uit");
+    if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
+                    checkDraw(tumDrawText(QuitChar,
+                                          SCREEN_WIDTH*2/4-QuitCharWidth/2,
+                                          SCREEN_HEIGHT*65/100 - DEFAULT_FONT_SIZE/2,
+                                          White),
+                                          __FUNCTION__);
+    }
+}
+
+unsigned char xCheckGoToMainMenuPressed()
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
+        if (buttons.buttons[KEYCODE(M)]){
+            xSemaphoreGive(buttons.lock);
+            if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                GameOverInfoBuffer.GameOverActions = GoToMainMenu;
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+            }
+            return 1;
+        }              
+        xSemaphoreGive(buttons.lock);
+        return 0;
+    }
+    return 0;
+}
+void vTaskGameOver(void *pvParameters)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t UpdatePeriod = 20;
+
+    vSetGameOverInfoBufferValues();
+
+    while(1){
+        xGetButtonInput();
+        xCheckQuit();
+        if(xCheckGoToMainMenuPressed())
+            vHandleStateMachineActivation();
+
+        if(DrawSignal) 
+            if(xSemaphoreTake(DrawSignal, portMAX_DELAY)==pdTRUE){
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+            
+                    tumDrawClear(Black);
+                    vDrawInstructionsGameOver();
+                    vDrawStaticTexts();
+                    vDrawLevel();
+                    vDrawLives();
+                    vDrawFPS(); 
+
+                xSemaphoreGive(ScreenLock);
+
+                vTaskDelayUntil(&xLastWakeTime, 
+                                pdMS_TO_TICKS(UpdatePeriod));
+            }
+    }
+}
+
+void vStateMachine(void *pvParameters){
+    unsigned char current_state = BEGIN;
+    unsigned char changed_state = 1;
+
+    TickType_t Last_Change = 0;
+    const int state_change_period = STATE_DEBOUNCE_DELAY;
+
+    while(1){
+        Last_Change=xTaskGetTickCount();
+        if (changed_state) goto initial_state;
+
+        if (StateQueue){
+            if (xQueueReceive(StateQueue,&current_state,portMAX_DELAY)==pdTRUE){
+                    if(xTaskGetTickCount() - Last_Change > state_change_period){
+                        changed_state=1;
+                        Last_Change=xTaskGetTickCount();
+                    }
+            }
+        }
+
+        initial_state:
+            if (changed_state){
+                xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY);
+
+                    switch (current_state){
+
+                        case MainMenuState: // Begin 
+
+                            if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
+                            if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
+                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
+                            if(GameOverTask) vTaskSuspend(GameOverTask);
+                            if(MainMenuTask) vTaskResume(MainMenuTask);
+                            break;
+
+                        case PlayingState:
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
+                            if(GameOverTask) vTaskSuspend(GameOverTask);
+                            if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
+                            if(MainPlayingGameTask) vTaskResume(MainPlayingGameTask);
+                            break;
+
+                        case PausedState:
+
+                            if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
+                            if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+                            if(GameOverTask) vTaskSuspend(GameOverTask);
+                            if(PausedGameTask) vTaskResume(PausedGameTask);
+                            break;
+
+                        case GameOverState:
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+
+                            if(MainPlayingGameTask){
+                                vTaskSuspend(MainPlayingGameTask);
+                                vTaskDelete(MainPlayingGameTask);
+                                if(xTaskCreate(vTaskPlayingGame, "MainPlayingGameTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                                                configMAX_PRIORITIES-4, &MainPlayingGameTask) != pdPASS) 
+                                    exit(EXIT_SUCCESS);
+                                vTaskSuspend(MainPlayingGameTask);
+                            }
+
+                            if(CreaturesActionControlTask){ 
+                                vTaskSuspend(CreaturesActionControlTask);
+                                vTaskDelete(CreaturesActionControlTask);
+                                if(xTaskCreate(vTaskCreaturesActionControl, "CreaturesActionControl", mainGENERIC_STACK_SIZE*2, NULL,
+                                               configMAX_PRIORITIES - 3, &CreaturesActionControlTask)!=pdPASS)
+                                    exit(EXIT_SUCCESS);
+                                vTaskSuspend(CreaturesActionControlTask);
+                            }
+                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
+                            if(GameOverTask) vTaskResume(GameOverTask);
+                            break;
+
+                        default:
+                            break;
+                    }
+
+                    GameStateBuffer.GameState=current_state;
+                    changed_state=0; //Resets changed state
+
+                xSemaphoreGive(GameStateBuffer.lock);
+            }
+     }
 }
 int main(int argc, char *argv[])
 {
@@ -1370,9 +1527,22 @@ int main(int argc, char *argv[])
         goto err_pausedgameinfolock;
     }
 
+    if(xTaskCreate(vTaskGameOver, "GameOver", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 4, &GameOverTask)!=pdPASS){
+        PRINT_ERROR("Failed to create Game Over Task.");
+        goto err_gameovertask;
+    }
+
+    GameOverInfoBuffer.lock = xSemaphoreCreateMutex();
+    if(!GameOverInfoBuffer.lock){
+        PRINT_ERROR("Failed to create Game over info buffer lock.");
+        goto err_gameoverinfolock;
+    }
+
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
     vTaskSuspend(PausedGameTask);
+    vTaskSuspend(GameOverTask);
     vTaskSuspend(ShipBulletControlTask);
     vTaskSuspend(BunkerShotControlTask);
     vTaskSuspend(CreaturesShotControlTask);
@@ -1384,6 +1554,10 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+err_gameoverinfolock:
+    vTaskDelete(GameOverTask);
+err_gameovertask:
+    vSemaphoreDelete(PausedGameInfoBuffer.lock);
 err_pausedgameinfolock:
     vTaskDelete(PausedGameTask);
 err_pausedgametask:

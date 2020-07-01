@@ -55,4 +55,11 @@ typedef enum PausedGameActions_t{
     RemainPaused,
     ResumeGame
 }PausedGameActions_t;
+
+typedef enum GameOverActions_t {
+    RemainGameOverScreen,
+    GoToMainMenu
+}GameOverActions_t;
+
+
 #endif 
