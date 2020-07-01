@@ -5,6 +5,16 @@
 #include "ship.h"
 #include "main.h"
 
+#define NUMB_OF_CREATURES 8
+
+#define NUMB_IN_ROW 8
+#define NUMB_OF_ROWS 5
+#define NUMB_OF_COLUMNS 8
+
+#define CREATURE_SPEED 1
+#define CREATURE_BULLET_SPEED 5
+#define CREAT_BULLET_THICKNESS 3
+
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
 #define CREATURE_Y_POS SCREEN_HEIGHT*50/100
 
@@ -14,13 +24,6 @@
 
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
 
-#define NUMB_OF_CREATURES 8
-#define NUMB_IN_ROW 8
-#define NUMB_OF_COLUMNS 8
-#define CREATURE_SPEED 1
-
-#define CREATURE_BULLET_SPEED 5
-#define CREAT_BULLET_THICKNESS 3
 
 typedef enum creatureIDS_t{
     CreatureONE,

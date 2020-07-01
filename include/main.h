@@ -10,10 +10,6 @@
 #define BOTTOM_WALLTHICKNESS 3
 #define BOTTOM_WALLPOSITION SCREEN_HEIGHT*95/100
 
-#define STATE_DEBOUNCE_DELAY 1000
-
-#define STATE_QUEUE_LENGTH 1
-#define BEGIN MainMenuState
 
 void checkDraw(unsigned char status, const char *msg);
 
@@ -35,9 +31,10 @@ typedef enum Rows_t{
     Row_4
 }Rows_t;
 
+#define BEGIN MainMenuState
 typedef enum GameState_t{
     MainMenuState,
-    GameState,
+    PlayingState,
     PausedState,
     GameOverState
 }GameState_t;
@@ -48,5 +45,14 @@ typedef enum SelectedMenuOption_t{
     Leave
 }SelectedMenuOption_t;
 
+typedef enum PlayerOutsideGameActions_t{
+    NoAction,
+    PauseGameAction,
+    LostGameAction 
+}PlayerOutsideGameActions_t;
 
+typedef enum PausedGameActions_t{
+    RemainPaused,
+    ResumeGame
+}PausedGameActions_t;
 #endif 
