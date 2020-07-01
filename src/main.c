@@ -267,6 +267,10 @@ void vSwapBuffers(void *pvParameters)
     }
 }
 
+unsigned char vHandleGameStateSM()
+{
+    return 0;
+}
 unsigned char vHandleMainMenuSM()
 {
     if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -274,18 +278,22 @@ unsigned char vHandleMainMenuSM()
         switch(MainMenuInfoBuffer.SelectedMenuOption){
 
             case SinglePlayer:
-               return 1; 
-               break; 
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                return 1; 
+                break; 
 
             case Leave:
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
                 exit(EXIT_SUCCESS);
                 break;
 
             case MultiPlayer:
             default:
-               return 0;
-               break;
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                return 0;
+                break;
         }
+
         xSemaphoreGive(MainMenuInfoBuffer.lock);
     }
     return 0;
@@ -303,6 +311,8 @@ void vHandleStateMachineActivation()
                 break; 
 
             case GameState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                if(vHandleGameStateSM())
                 break;
 
             case PausedState:
@@ -344,6 +354,7 @@ void vStateMachine(void *pvParameters){
                 xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY);
 
                     switch (current_state){
+
                         case MainMenuState: // Begin 
                             if(MainMenuTask) vTaskResume(MainMenuTask);
                             if(MainGameTask) vTaskSuspend(MainGameTask);
@@ -558,6 +569,33 @@ void vPlayBunkerShotSound()
 void vPlayBulletSound()
 {
     tumSoundPlaySample(a3);
+}
+
+void vDrawInstructionsWithinGame()
+{
+    char QuitChar[20];
+    int QuitCharWidth=0;
+
+    char PauseChar[20];
+    int PauseCharWidth=0;
+
+    sprintf(QuitChar,"[Q]uit");
+    if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
+                    checkDraw(tumDrawText(QuitChar,
+                                          SCREEN_WIDTH*2/4-QuitCharWidth/2,
+                                          SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                                          White),
+                                          __FUNCTION__);
+    }
+
+    sprintf(PauseChar,"[P]ause");
+    if(!tumGetTextSize((char *)PauseChar,&PauseCharWidth, NULL)){
+                    checkDraw(tumDrawText(PauseChar,
+                                          SCREEN_WIDTH*2/4-PauseCharWidth/2 + 70,
+                                          SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                                          White),
+                                          __FUNCTION__);
+    }
 }
 void vDrawLevel()
 {
@@ -994,6 +1032,7 @@ void vTaskGame(void *pvParameters)
                     vDrawLowerWall();
                     vDrawLevel();
                     vDrawLives();
+                    vDrawInstructionsWithinGame();
                     vDrawFPS();    
 
                 xSemaphoreGive(ScreenLock);
