@@ -114,6 +114,7 @@ void vCreateCreaturesBullet(creature_t* creatures,
 
 
 void vDrawCreaturesBullet(bullet_t* CreatureBullets);
+void vAlternateAnimation(creature_t* creature);
 void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet);
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -130,10 +131,10 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short x_pos,
                                                  signed short y_pos,
                                                  ship_t* ship);
 
-void vKillCreature(creature_t* creature, unsigned char ID);
-void vAlternateAnimation(creature_t* creature);
+void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures);
 
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
+void vUpdateCreaturesSpeed(creature_t* Creatures);
 
 unsigned char xFetchCreatureValue(unsigned char creatureclassID);
 #endif 

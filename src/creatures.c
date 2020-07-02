@@ -95,9 +95,10 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
         return -1;
 }
 
-void vKillCreature(creature_t* creature, unsigned char creatureID)
+void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures)
 {
     creature->Alive=0; 
+    (*NumbOfAliveCreatures)--;
 }
 
 void vAlternateAnimation(creature_t* creature)
@@ -275,4 +276,19 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short b_xpos,
         else 
             return 0;
     else return 0;
+}
+
+void vUpdateSingleCreaturesSpeed(creature_t* Creature)
+{
+    Creature->speed++;
+}
+
+void vUpdateCreaturesSpeed(creature_t* Creatures)
+{
+    unsigned short creatureIDcount=0;
+    while(creatureIDcount<NUMB_OF_CREATURES){
+        if(Creatures[creatureIDcount].Alive==1)
+            vUpdateSingleCreaturesSpeed(&Creatures[creatureIDcount]);
+        creatureIDcount++;
+    }
 }

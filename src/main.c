@@ -860,16 +860,18 @@ void vTaskShipShotControl(void *pvParameters)
 
 void vTaskCreaturesShotControl(void *pvParameters)
 {
+    unsigned char SpeedChangeCount=0;
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
                 vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
-                              CreatureCollisionID);
+                              &CreaturesBuffer.NumbOfAliveCreatures);
+
                 vPlayDeadCreatureSound();
-                CreaturesBuffer.NumbOfAliveCreatures--;
-                //vCheckNewNumberOfOpenRows(CreaturesBuffer.Creatures, 
-                                          //&CreaturesBuffer.NumbOfActivecolumns);
+                SpeedChangeCount++;
+                if(SpeedChangeCount%3==0)
+                    vUpdateCreaturesSpeed(CreaturesBuffer.Creatures);
 
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
                     vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
@@ -984,12 +986,10 @@ void vTaskCreaturesBulletControl(void *pvParameters)
                                 vPlayBulletWallSound();
 
                             else if(BunkerCollisionFlag){
-                                printf("BunkerID: %d\n", BunkerCollisionFlag);
                                 vTaskResume(BunkerShotControlTask);
                                 xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
                             }
                             else if(ShipCollisonFlag){  
-                                printf("Ship Hit.\n");
                                 vTaskResume(ShipShotControlTask);
                                 xTaskNotify(ShipShotControlTask, (uint32_t)ShipCollisonFlag, eSetValueWithOverwrite);
                             }
