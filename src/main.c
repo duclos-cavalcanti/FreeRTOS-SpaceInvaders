@@ -1046,7 +1046,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
                 xPrevAnimatedTime = xTaskGetTickCount();
             }
             
-            vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement[Row_1]);
+            vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, CreaturesBuffer.H_Movement);
          
             if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod &&
                CreaturesBuffer.BulletAliveFlag==0 &&

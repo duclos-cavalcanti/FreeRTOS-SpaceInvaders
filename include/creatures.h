@@ -135,6 +135,7 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short x_pos,
 void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures);
 
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
+
 void vUpdateCreaturesSpeed(creature_t* Creatures);
 
 unsigned char xFetchCreatureValue(unsigned char creatureclassID);

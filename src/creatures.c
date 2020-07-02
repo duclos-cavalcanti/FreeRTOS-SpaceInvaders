@@ -167,12 +167,15 @@ unsigned char xCheckRightEdgeDistance(signed short x_pos)
     else return 0;
 }
 
-H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION)
+H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION, Rows_t Row)
 { 
     signed short creature_count;
+    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
+    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS); 
+
     if(DIRECTION == RIGHT){
-        creature_count=NUMB_OF_ROWS -1;
-        while(creature_count >= 0){
+        creature_count=ROW_END;        
+        while(creature_count >= ROW_BEGIN){
             if(creatures[creature_count].Alive==1){
                 if(xCheckRightEdgeDistance(creatures[creature_count].x_pos))
                     return LEFT;
@@ -184,8 +187,8 @@ H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION)
             } 
         }
     else if(DIRECTION == LEFT){ 
-        creature_count=0;
-        while(creature_count<NUMB_OF_ROWS){  
+        creature_count = ROW_BEGIN;
+        while(creature_count<ROW_END){  
             if(creatures[creature_count].Alive==1){
                 if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos))
                     return RIGHT;
@@ -208,10 +211,13 @@ void vMoveSingleCreatureRightHorizontal(creature_t* creature)
     creature->x_pos+=creature->speed;    
 }
 
-void vMoveCreaturesLeftHorizontal(creature_t* creatures)
+void vMoveCreaturesRowLeftHorizontal(creature_t* creatures, Rows_t Row)
 {
-    unsigned char CreatureCountID = 0;
-    while(CreatureCountID<NUMB_OF_CREATURES){
+    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
+    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS); 
+    unsigned char CreatureCountID = ROW_BEGIN;
+
+    while(CreatureCountID<=ROW_END){
         if(creatures[CreatureCountID].Alive==1)
             vMoveSingleCreatureLeftHorizontal(&creatures[CreatureCountID]);
         ++CreatureCountID;
@@ -219,24 +225,39 @@ void vMoveCreaturesLeftHorizontal(creature_t* creatures)
 
 }
 
-void vMoveCreaturesRightHorizontal(creature_t* creatures)
+void vMoveCreaturesRowRightHorizontal(creature_t* creatures, Rows_t Row)
+
 {
-    unsigned char CreatureCountID = 0;
-    while(CreatureCountID<NUMB_OF_CREATURES){
+    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
+    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS);
+    unsigned char CreatureCountID = ROW_BEGIN;
+
+    while(CreatureCountID<=ROW_END){
         if(creatures[CreatureCountID].Alive==1)
             vMoveSingleCreatureRightHorizontal(&creatures[CreatureCountID]);
         ++CreatureCountID;
     }
 }
-void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
-{
-    (*DIRECTION) = xCheckDirectionOfRow(creatures, (*DIRECTION));
 
-    if((*DIRECTION) == RIGHT)
-        vMoveCreaturesRightHorizontal(creatures);
+void vMoveCreaturesRowHorizontal(creature_t* creatures, H_Movement_t* DIRECTION_OF_ROW, Rows_t Row)
+{ 
+    (*DIRECTION_OF_ROW) = xCheckDirectionOfRow(creatures, (*DIRECTION_OF_ROW), Row);
+
+    if((*DIRECTION_OF_ROW) == RIGHT)
+        vMoveCreaturesRowRightHorizontal(creatures, Row);
     else 
-        vMoveCreaturesLeftHorizontal(creatures);
+        vMoveCreaturesRowLeftHorizontal(creatures, Row);
+}
 
+void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTIONS_ARRAY)
+{
+    vMoveCreaturesRowHorizontal(creatures, 
+                                &DIRECTIONS_ARRAY[Row_1], 
+                                Row_1);
+
+    vMoveCreaturesRowHorizontal(creatures, 
+                                &DIRECTIONS_ARRAY[Row_2], 
+                                Row_2);
 }
 
 unsigned char xCheckCreatureChoice(creature_t* creatures, unsigned char ChoiceID)
