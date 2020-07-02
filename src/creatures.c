@@ -6,6 +6,7 @@
 #include "TUM_Draw.h"
 #include "creatures.h"
 #include "ship.h"
+#include "utilities.h"
 
 int* SetXcoords()
 {
@@ -22,7 +23,7 @@ int* SetYcoords()
     int* CreaturesYcoords = calloc(NUMB_OF_ROWS, sizeof(int));
 
     for(int i=0;i<NUMB_OF_ROWS;i++)
-        CreaturesYcoords[i]=CREATURE_Y_ROW_BEGIN + i*CREATURE_Y_DIST_APART;
+        CreaturesYcoords[i]=CREATURE_Y_ROW_BEGIN - i*CREATURE_Y_DIST_APART;
 
     return CreaturesYcoords;
 }
@@ -35,6 +36,23 @@ int* SetTypes()
     CreaturesTypes[1]=MEDIUM;
     return CreaturesTypes;
 }
+
+creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
+                                classes_t CreatureType, creatureIDS_t ID)
+{
+    creature_t creature; 
+
+    creature.x_pos=x_pos;
+    creature.y_pos=y_pos;
+    creature.speed=CREATURE_SPEED;
+    creature.Alive=1;
+    creature.CreatureType=CreatureType;
+    creature.CreatureID=ID;
+    creature.Position=Position0;
+
+    return creature;
+}
+
 creature_t* CreateCreatures()
 {
     creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t));
@@ -59,34 +77,6 @@ creature_t* CreateCreatures()
     }
 
     return CreatureArray;
-
-}
-
-creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
-                           classes_t CreatureType, creatureIDS_t ID)
-{
-    creature_t creature; 
-
-    creature.x_pos=x_pos;
-    creature.y_pos=y_pos;
-    creature.speed=CREATURE_SPEED;
-
-    creature.Alive=1;
-    creature.CreatureType=CreatureType;
-    creature.CreatureID=ID;
-    creature.Position=Position0;
-    return creature;
-}
-bullet_t CreateCreateSingleBullet(creature_t* creature)
-{
-    bullet_t CreatureBullet;
-
-    CreatureBullet.x_pos=creature->x_pos;
-    CreatureBullet.y_pos=creature->y_pos + CREATURE_HEIGHT/2;
-    CreatureBullet.speed=CREATURE_BULLET_SPEED;
-    CreatureBullet.BulletAliveFlag=1;
-
-    return CreatureBullet;
 }
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -95,7 +85,6 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
 {   
     unsigned char CreatureCount=0;
     signed  char CreatureCollisionID=0;
-
     while(CreatureCount<NUMB_OF_CREATURES){
         if(creatures[CreatureCount].Alive==1){
             CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
@@ -112,7 +101,7 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                       creature_t* creature)
 {
-    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 - SHIP_BULLET_THICKNESS/2;
     signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
     signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
     signed short UPPER_LIMIT = creature->y_pos - CREATURE_HEIGHT/2;
@@ -131,30 +120,6 @@ void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures)
     (*NumbOfAliveCreatures)--;
 }
 
-void vAlternateAnimation(creature_t* creature)
-{
-    if(creature->Position == Position0) creature->Position=Position1;
-    else creature->Position=Position0;
-}
-
-unsigned char xFetchCreatureValue(unsigned char creatureclassID)
-{
-    switch(creatureclassID){
-        case EASY:
-            return 10;
-            break;
-        case MEDIUM:
-            return 20;
-            break;
-        case HARD:
-            return 30;
-            break;
-        case NONEXISTENT_CLASS:
-        default:
-            return 0;
-    }
-}
-
 unsigned char xCheckLeftEdgeDistance(signed short x_pos)
 {
     if(x_pos - CREATURE_SPEED <=  CREATURE_WIDTH/2) return 1;
@@ -167,17 +132,19 @@ unsigned char xCheckRightEdgeDistance(signed short x_pos)
     else return 0;
 }
 
-H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION, Rows_t Row)
+H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
 { 
     signed short creature_count;
-    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
-    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS); 
+    signed short ROW_END = NUMB_OF_COLUMNS - 1;
+    signed short ROW_BEGIN = 0; 
 
     if(DIRECTION == RIGHT){
         creature_count=ROW_END;        
         while(creature_count >= ROW_BEGIN){
-            if(creatures[creature_count].Alive==1){
-                if(xCheckRightEdgeDistance(creatures[creature_count].x_pos))
+            if(creatures[creature_count].Alive==1 ||
+               creatures[creature_count+8].Alive==1){
+                if(xCheckRightEdgeDistance(creatures[creature_count].x_pos) ||
+                   xCheckRightEdgeDistance(creatures[creature_count+8].x_pos))
                     return LEFT;
                 else 
                     return RIGHT;
@@ -188,9 +155,11 @@ H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION, 
         }
     else if(DIRECTION == LEFT){ 
         creature_count = ROW_BEGIN;
-        while(creature_count<ROW_END){  
-            if(creatures[creature_count].Alive==1){
-                if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos))
+        while(creature_count<=ROW_END){  
+            if(creatures[creature_count].Alive==1 ||
+               creatures[creature_count+8].Alive==1){
+                if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos) ||
+                   xCheckLeftEdgeDistance(creatures[creature_count+8].x_pos))
                     return RIGHT;
                 else 
                     return LEFT;
@@ -211,13 +180,11 @@ void vMoveSingleCreatureRightHorizontal(creature_t* creature)
     creature->x_pos+=creature->speed;    
 }
 
-void vMoveCreaturesRowLeftHorizontal(creature_t* creatures, Rows_t Row)
+void vMoveCreaturesLeftHorizontal(creature_t* creatures)
 {
-    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
-    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS); 
-    unsigned char CreatureCountID = ROW_BEGIN;
+    unsigned char CreatureCountID = 0;
 
-    while(CreatureCountID<=ROW_END){
+    while(CreatureCountID<NUMB_OF_CREATURES){
         if(creatures[CreatureCountID].Alive==1)
             vMoveSingleCreatureLeftHorizontal(&creatures[CreatureCountID]);
         ++CreatureCountID;
@@ -225,69 +192,60 @@ void vMoveCreaturesRowLeftHorizontal(creature_t* creatures, Rows_t Row)
 
 }
 
-void vMoveCreaturesRowRightHorizontal(creature_t* creatures, Rows_t Row)
-
+void vMoveCreaturesRightHorizontal(creature_t* creatures)
 {
-    signed short ROW_END = NUMB_OF_COLUMNS - 1 + (Row)*NUMB_OF_COLUMNS;
-    signed short ROW_BEGIN = 0 + (Row)*(NUMB_OF_COLUMNS);
-    unsigned char CreatureCountID = ROW_BEGIN;
+    unsigned char CreatureCountID = 0;
 
-    while(CreatureCountID<=ROW_END){
+    while(CreatureCountID<NUMB_OF_CREATURES){
         if(creatures[CreatureCountID].Alive==1)
             vMoveSingleCreatureRightHorizontal(&creatures[CreatureCountID]);
         ++CreatureCountID;
     }
 }
 
-void vMoveCreaturesRowHorizontal(creature_t* creatures, H_Movement_t* DIRECTION_OF_ROW, Rows_t Row)
-{ 
-    (*DIRECTION_OF_ROW) = xCheckDirectionOfRow(creatures, (*DIRECTION_OF_ROW), Row);
+void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
+{
+    (*DIRECTION) = xCheckDirectionOfRows(creatures, (*DIRECTION));
 
-    if((*DIRECTION_OF_ROW) == RIGHT)
-        vMoveCreaturesRowRightHorizontal(creatures, Row);
+    if((*DIRECTION) == RIGHT)
+        vMoveCreaturesRightHorizontal(creatures);
     else 
-        vMoveCreaturesRowLeftHorizontal(creatures, Row);
+        vMoveCreaturesLeftHorizontal(creatures);
 }
 
-void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTIONS_ARRAY)
+void vUpdateSingleCreaturesSpeed(creature_t* Creature)
 {
-    vMoveCreaturesRowHorizontal(creatures, 
-                                &DIRECTIONS_ARRAY[Row_1], 
-                                Row_1);
-
-    vMoveCreaturesRowHorizontal(creatures, 
-                                &DIRECTIONS_ARRAY[Row_2], 
-                                Row_2);
+    Creature->speed++;
 }
 
-unsigned char xCheckCreatureChoice(creature_t* creatures, unsigned char ChoiceID)
+void vUpdateCreaturesSpeed(creature_t* Creatures)
 {
-   if(creatures[ChoiceID].Alive == 1)
-       return 1;
-   else
-       return 0;
-}
-
-unsigned int xChooseCreature(creature_t* creatures)
-{
-    unsigned int Choice=0;
-    unsigned short ChoiceMade=0;
-
-    while(ChoiceMade==0){
-        Choice = rand()%NUMB_OF_COLUMNS;
-
-        if(xCheckCreatureChoice(creatures, Choice))
-            ChoiceMade=1;
+    unsigned short creatureIDcount=0;
+    while(creatureIDcount<NUMB_OF_CREATURES){
+        if(Creatures[creatureIDcount].Alive==1)
+            vUpdateSingleCreaturesSpeed(&Creatures[creatureIDcount]);
+        creatureIDcount++;
     }
-    
-    return Choice;
+}
+
+bullet_t CreateCreatureSingleBullet(creature_t* creature)
+{
+    bullet_t CreatureBullet;
+
+    CreatureBullet.x_pos=creature->x_pos;
+    CreatureBullet.y_pos=creature->y_pos + CREATURE_HEIGHT/2;
+    CreatureBullet.speed=CREATURE_BULLET_SPEED;
+    CreatureBullet.BulletAliveFlag=1;
+
+    return CreatureBullet;
 }
 void vCreateCreaturesBullet(creature_t* creatures, 
-                             bullet_t* CreatureBullet)
+                            bullet_t* CreaturesBullet)
+
 {
     unsigned int CreatureChoiceID=0;
-    CreatureChoiceID = xChooseCreature(creatures);
-    (*CreatureBullet)=CreateCreateSingleBullet(&creatures[CreatureChoiceID]);
+    CreatureChoiceID = rand()%NUMB_OF_COLUMNS;
+    (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
 void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet)
@@ -329,17 +287,27 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short b_xpos,
     else return 0;
 }
 
-void vUpdateSingleCreaturesSpeed(creature_t* Creature)
+void vAlternateAnimation(creature_t* creature)
 {
-    Creature->speed++;
+    if(creature->Position == Position0) creature->Position=Position1;
+    else creature->Position=Position0;
 }
 
-void vUpdateCreaturesSpeed(creature_t* Creatures)
+unsigned char xFetchCreatureValue(unsigned char creatureclassID)
 {
-    unsigned short creatureIDcount=0;
-    while(creatureIDcount<NUMB_OF_CREATURES){
-        if(Creatures[creatureIDcount].Alive==1)
-            vUpdateSingleCreaturesSpeed(&Creatures[creatureIDcount]);
-        creatureIDcount++;
+    switch(creatureclassID){
+        case EASY:
+            return 10;
+            break;
+        case MEDIUM:
+            return 20;
+            break;
+        case HARD:
+            return 30;
+            break;
+        case NONEXISTENT_CLASS:
+        default:
+            return 0;
     }
 }
+

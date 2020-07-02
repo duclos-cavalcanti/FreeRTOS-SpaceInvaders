@@ -119,15 +119,10 @@ typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
     bullet_t CreaturesBullet;
     unsigned short BulletAliveFlag;
-
     unsigned short NumbOfAliveCreatures;   
-    unsigned short NumbOfActiveRows; 
-    unsigned short NumbOfActivecolumns;
-    H_Movement_t H_Movement[5];
-    V_Movement_t V_Movement[5];
+    H_Movement_t H_Movement;
 
     image_handle_t ImagesCatalog[4];
-
     SemaphoreHandle_t lock;
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
@@ -228,15 +223,9 @@ void vSetCreaturesBufferValues()
         CreaturesBuffer.ImagesCatalog[2]=CreatureMEDIUM_0;
         CreaturesBuffer.ImagesCatalog[3]=CreatureMEDIUM_1;
 
-        CreaturesBuffer.H_Movement[Row_1] = RIGHT;
-        CreaturesBuffer.H_Movement[Row_2] = RIGHT;
-        CreaturesBuffer.V_Movement[Row_1] = DOWN;
-        CreaturesBuffer.V_Movement[Row_2] = DOWN;
-
+        CreaturesBuffer.H_Movement = RIGHT;
         CreaturesBuffer.BulletAliveFlag=0;
         CreaturesBuffer.NumbOfAliveCreatures=NUMB_OF_CREATURES;
-        CreaturesBuffer.NumbOfActivecolumns=NUMB_OF_COLUMNS;
-        CreaturesBuffer.NumbOfActiveRows=NUMB_OF_ROWS;
 
         CreaturesBuffer.Creatures = CreateCreatures();
         vAssignCreaturesImages(CreaturesBuffer.Creatures,
@@ -1046,14 +1035,16 @@ void vTaskCreaturesActionControl(void *pvParameters)
                 xPrevAnimatedTime = xTaskGetTickCount();
             }
             
-            vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, CreaturesBuffer.H_Movement);
+            vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.H_Movement);
          
             if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod &&
-               CreaturesBuffer.BulletAliveFlag==0 &&
-               CreaturesBuffer.NumbOfAliveCreatures>0){
+                CreaturesBuffer.BulletAliveFlag==0 &&
+                CreaturesBuffer.NumbOfAliveCreatures>0){
 
                 vCreateCreaturesBullet(CreaturesBuffer.Creatures, 
                                        &CreaturesBuffer.CreaturesBullet);
+                
+
                 CreaturesBuffer.BulletAliveFlag=1;
                 vPlayBulletSound();
                 xPrevShotTime = xTaskGetTickCount();

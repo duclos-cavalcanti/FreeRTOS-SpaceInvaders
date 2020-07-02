@@ -19,7 +19,7 @@
 #define CREATURE_Y_ROW_BEGIN SCREEN_HEIGHT*1/2
 #define CREATURE_X_ROW_BEGIN SCREEN_WIDTH*1/6
 #define CREATURE_X_DIST_APART 60
-#define CREATURE_Y_DIST_APART 60
+#define CREATURE_Y_DIST_APART 40
 
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
 
@@ -92,35 +92,40 @@ typedef enum H_Movement_t{
 typedef struct creature_t{
     classes_t CreatureType;
     creatureIDS_t CreatureID;
-    unsigned short PlaceInMatrix [NUMB_OF_ROWS][NUMB_OF_COLUMNS];
 
     signed short x_pos;
     signed short y_pos;
     signed short speed;
-    
     unsigned char Alive;
 
     Position_t Position;
-    bullet_t* bullet;
     image_handle_t Image_0;
     image_handle_t Image_1;
 }creature_t;
 
+
+
 creature_t* CreateCreatures();
-creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
-                                classes_t CreatureType, creatureIDS_t ID);
-
-void vCreateCreaturesBullet(creature_t* creatures, 
-                            bullet_t* CreatureBullets);
-
-
-void vDrawCreaturesBullet(bullet_t* CreatureBullets);
-void vAlternateAnimation(creature_t* creature);
-void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet);
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x,
                                      signed short bullet_y);
+
+void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
+
+void vUpdateCreaturesSpeed(creature_t* Creatures);
+
+
+
+
+
+void vCreateCreaturesBullet(creature_t* creatures, 
+                            bullet_t* CreaturesBullet);
+
+
+void vDrawCreaturesBullet(bullet_t* CreatureBullets);
+
+void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet);
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
                                           creature_t* creature);
@@ -134,10 +139,10 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short x_pos,
 
 void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures);
 
-void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
 
-void vUpdateCreaturesSpeed(creature_t* Creatures);
 
+
+void vAlternateAnimation(creature_t* creature);
 unsigned char xFetchCreatureValue(unsigned char creatureclassID);
 #endif 
 

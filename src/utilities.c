@@ -5,6 +5,7 @@
 
 #include "TUM_Draw.h"
 #include "main.h"
+#include "utilities.h"
 #include "creatures.h"
 
 
@@ -55,4 +56,24 @@ void vAssignCreaturesImages(creature_t* Creatures, image_handle_t* ImageCatalog)
             Creatures[i].Image_1 = ImageCatalog[3];
         }
     }
+}
+
+NumberToMatrix_t xFindMatrixValue(unsigned char CreatureChoiceID)
+{
+    NumberToMatrix_t MatrixValues;
+    if(CreatureChoiceID<NUMB_OF_COLUMNS){
+        MatrixValues.row_x = 0;
+        MatrixValues.column_y = CreatureChoiceID; 
+    }
+    else{
+        unsigned short Remainder = CreatureChoiceID % NUMB_OF_COLUMNS; 
+        MatrixValues.column_y=Remainder;
+        if(CreatureChoiceID < 16)
+            MatrixValues.row_x=1;
+        else if(CreatureChoiceID < 24)
+            MatrixValues.row_x=2;
+        else 
+            MatrixValues.row_x=3;
+    }
+    return MatrixValues;
 }

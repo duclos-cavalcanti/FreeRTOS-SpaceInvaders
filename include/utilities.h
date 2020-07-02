@@ -4,6 +4,11 @@
 #include "main.h"
 #include "creatures.h"
 
+typedef struct NumberToMatrix_t{
+    unsigned short row_x;
+    unsigned short column_y;
+}NumberToMatrix_t;
+
 void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect);
 void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect);
 
