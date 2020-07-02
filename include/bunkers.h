@@ -5,7 +5,7 @@
 #include "ship.h"
 
 
-#define BUNKERS_Y_POS SCREEN_HEIGHT*70/100
+#define BUNKERS_Y_POS SCREEN_HEIGHT*77/100
 #define BUNKER_SIDE_SIZE 40
 #define BUNKER_COLOR Green
 

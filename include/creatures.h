@@ -5,11 +5,9 @@
 #include "ship.h"
 #include "main.h"
 
-#define NUMB_OF_CREATURES 8
-
-#define NUMB_IN_ROW 8
-#define NUMB_OF_ROWS 5
+#define NUMB_OF_ROWS 2
 #define NUMB_OF_COLUMNS 8
+#define NUMB_OF_CREATURES NUMB_OF_ROWS*NUMB_OF_COLUMNS
 
 #define CREATURE_SPEED 1
 #define CREATURE_BULLET_SPEED 5
@@ -21,6 +19,7 @@
 #define CREATURE_Y_ROW_BEGIN SCREEN_HEIGHT*1/2
 #define CREATURE_X_ROW_BEGIN SCREEN_WIDTH*1/6
 #define CREATURE_X_DIST_APART 60
+#define CREATURE_Y_DIST_APART 60
 
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
 
@@ -93,6 +92,7 @@ typedef enum H_Movement_t{
 typedef struct creature_t{
     classes_t CreatureType;
     creatureIDS_t CreatureID;
+    unsigned short PlaceInMatrix [NUMB_OF_ROWS][NUMB_OF_COLUMNS];
 
     signed short x_pos;
     signed short y_pos;
@@ -102,7 +102,8 @@ typedef struct creature_t{
 
     Position_t Position;
     bullet_t* bullet;
-
+    image_handle_t Image_0;
+    image_handle_t Image_1;
 }creature_t;
 
 creature_t* CreateCreatures();

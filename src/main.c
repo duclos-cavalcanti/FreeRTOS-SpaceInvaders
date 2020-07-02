@@ -56,6 +56,9 @@ static image_handle_t GameOver = NULL;
 static image_handle_t PlayerShip = NULL;
 static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
+static image_handle_t CreatureEASY_0 = NULL;
+static image_handle_t CreatureEASY_1 = NULL;
+
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -116,11 +119,15 @@ typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
     bullet_t CreaturesBullet;
     unsigned short BulletAliveFlag;
+
     unsigned short NumbOfAliveCreatures;   
     unsigned short NumbOfActiveRows; 
     unsigned short NumbOfActivecolumns;
     H_Movement_t H_Movement[5];
     V_Movement_t V_Movement[5];
+
+    image_handle_t ImagesCatalog[4];
+
     SemaphoreHandle_t lock;
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
@@ -208,15 +215,32 @@ void vSetShipsBufferValues()
 }
 void vSetCreaturesBufferValues()
 {
+    CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
+    CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
+
+    CreatureEASY_0=tumDrawLoadImage("../resources/creature_E_0.bmp");
+    CreatureEASY_1=tumDrawLoadImage("../resources/creature_E_1.bmp");
+
     xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY);
 
-        CreaturesBuffer.Creatures = CreateCreatures();
+        CreaturesBuffer.ImagesCatalog[0]=CreatureEASY_0;
+        CreaturesBuffer.ImagesCatalog[1]=CreatureEASY_1;
+        CreaturesBuffer.ImagesCatalog[2]=CreatureMEDIUM_0;
+        CreaturesBuffer.ImagesCatalog[3]=CreatureMEDIUM_1;
+
         CreaturesBuffer.H_Movement[Row_1] = RIGHT;
+        CreaturesBuffer.H_Movement[Row_2] = RIGHT;
         CreaturesBuffer.V_Movement[Row_1] = DOWN;
+        CreaturesBuffer.V_Movement[Row_2] = DOWN;
+
         CreaturesBuffer.BulletAliveFlag=0;
         CreaturesBuffer.NumbOfAliveCreatures=NUMB_OF_CREATURES;
         CreaturesBuffer.NumbOfActivecolumns=NUMB_OF_COLUMNS;
         CreaturesBuffer.NumbOfActiveRows=NUMB_OF_ROWS;
+
+        CreaturesBuffer.Creatures = CreateCreatures();
+        vAssignCreaturesImages(CreaturesBuffer.Creatures,
+                               CreaturesBuffer.ImagesCatalog);
 
     xSemaphoreGive(CreaturesBuffer.lock);
 }
@@ -458,7 +482,6 @@ void vHandleStateMachineActivation()
     }
 }
 
-
 void vUpdatePlayerScore(unsigned char CreatureID)
 {
     static unsigned char AddOn=0;
@@ -684,26 +707,28 @@ void vDrawLives()
 void vDrawSingleCreature(unsigned char creatureID)
 {    
     if(CreaturesBuffer.Creatures[creatureID].Position)
-        checkDraw(tumDrawLoadedImage(CreatureMEDIUM_1,
+        checkDraw(tumDrawLoadedImage(CreaturesBuffer.Creatures[creatureID].Image_0,
                                      CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
                                      CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
                                      __FUNCTION__); 
     else
-        checkDraw(tumDrawLoadedImage(CreatureMEDIUM_0,
+        checkDraw(tumDrawLoadedImage(CreaturesBuffer.Creatures[creatureID].Image_1,
                                      CreaturesBuffer.Creatures[creatureID].x_pos -CREATURE_WIDTH/2,
                                      CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
                                      __FUNCTION__); 
 }
 void vDrawCreatures()
 {
-    unsigned char creatureIDcount=0;
+    unsigned char CreatureCountID=0;
 
     if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
 
-        while(creatureIDcount<NUMB_OF_CREATURES){ 
-            if(CreaturesBuffer.Creatures[creatureIDcount].Alive==1)
-                vDrawSingleCreature(creatureIDcount);
-            ++creatureIDcount;
+        for(int i=0;i<NUMB_OF_ROWS;i++){
+            for(int j=0;j<NUMB_OF_COLUMNS;j++){ 
+                if(CreaturesBuffer.Creatures[CreatureCountID].Alive==1)
+                    vDrawSingleCreature(CreatureCountID);
+                ++CreatureCountID;
+            }
         }
         xSemaphoreGive(CreaturesBuffer.lock);
     }
@@ -713,10 +738,8 @@ void vAnimateCreatures()
     unsigned char creatureIDcount = 0;
 
     while(creatureIDcount < NUMB_OF_CREATURES){      
-
         if(CreaturesBuffer.Creatures[creatureIDcount].Alive == 1)
             vAlternateAnimation(&CreaturesBuffer.Creatures[creatureIDcount]);
-
         ++creatureIDcount;
     }
 
@@ -1003,8 +1026,7 @@ void vTaskCreaturesBulletControl(void *pvParameters)
 }
 void vTaskCreaturesActionControl(void *pvParameters)
 {
-    CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
-    CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
+    vSetCreaturesBufferValues();
 
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t xPrevAnimatedTime = 0;
@@ -1014,7 +1036,6 @@ void vTaskCreaturesActionControl(void *pvParameters)
     const TickType_t AnimationPeriod = 500;
     const TickType_t WakeRate = 15;
     
-    vSetCreaturesBufferValues();
                             
     while(1){
         

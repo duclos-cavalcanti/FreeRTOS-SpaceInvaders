@@ -7,7 +7,34 @@
 #include "creatures.h"
 #include "ship.h"
 
+int* SetXcoords()
+{
+    int* CreaturesXcoords = calloc(NUMB_OF_COLUMNS, sizeof(int));
 
+    for(int i=0;i<NUMB_OF_COLUMNS;i++)
+        CreaturesXcoords[i]=CREATURE_X_ROW_BEGIN + i*CREATURE_X_DIST_APART;
+
+    return CreaturesXcoords;
+}
+
+int* SetYcoords()
+{
+    int* CreaturesYcoords = calloc(NUMB_OF_ROWS, sizeof(int));
+
+    for(int i=0;i<NUMB_OF_ROWS;i++)
+        CreaturesYcoords[i]=CREATURE_Y_ROW_BEGIN + i*CREATURE_Y_DIST_APART;
+
+    return CreaturesYcoords;
+}
+
+int* SetTypes()
+{
+    int* CreaturesTypes = calloc(NUMB_OF_ROWS, sizeof(int));
+
+    CreaturesTypes[0]=EASY;
+    CreaturesTypes[1]=MEDIUM;
+    return CreaturesTypes;
+}
 creature_t* CreateCreatures()
 {
     creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t));
@@ -17,14 +44,18 @@ creature_t* CreateCreatures()
     }
 
     unsigned short CreatureCountID=0; 
-    unsigned short CreatureDistance_X=0;
+    int* CreaturesX=SetXcoords();
+    int* CreaturesY=SetYcoords();
+    int* CreaturesTYPES=SetTypes();
 
-    while(CreatureCountID<NUMB_OF_CREATURES){
-        CreatureDistance_X = CREATURE_X_DIST_APART*CreatureCountID;
-        CreatureArray[CreatureCountID]=CreateSingleCreature(CREATURE_X_ROW_BEGIN + CreatureDistance_X,
-                                                            CREATURE_Y_ROW_BEGIN,
-                                                            MEDIUM, CreatureCountID);
-        ++CreatureCountID;
+    for(int i=0;i<NUMB_OF_ROWS;i++){
+        for(int j=0;j<NUMB_OF_COLUMNS;j++){ 
+            CreatureArray[CreatureCountID]=CreateSingleCreature(CreaturesX[j],
+                                                                CreaturesY[i],
+                                                                CreaturesTYPES[i], 
+                                                                CreatureCountID);
+            ++CreatureCountID;
+        }
     }
 
     return CreatureArray;
@@ -44,8 +75,7 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
     creature.CreatureType=CreatureType;
     creature.CreatureID=ID;
     creature.Position=Position0;
-
-return creature;
+    return creature;
 }
 bullet_t CreateCreateSingleBullet(creature_t* creature)
 {
@@ -63,8 +93,8 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                  signed short bullet_x_pos,
                                  signed short bullet_y_pos)
 {   
-unsigned char CreatureCount=0;
-signed  char CreatureCollisionID=0;
+    unsigned char CreatureCount=0;
+    signed  char CreatureCollisionID=0;
 
     while(CreatureCount<NUMB_OF_CREATURES){
         if(creatures[CreatureCount].Alive==1){
@@ -141,7 +171,7 @@ H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION)
 { 
     signed short creature_count;
     if(DIRECTION == RIGHT){
-        creature_count=NUMB_IN_ROW -1;
+        creature_count=NUMB_OF_ROWS -1;
         while(creature_count >= 0){
             if(creatures[creature_count].Alive==1){
                 if(xCheckRightEdgeDistance(creatures[creature_count].x_pos))
@@ -155,7 +185,7 @@ H_Movement_t xCheckDirectionOfRow(creature_t* creatures,H_Movement_t DIRECTION)
         }
     else if(DIRECTION == LEFT){ 
         creature_count=0;
-        while(creature_count<NUMB_IN_ROW){  
+        while(creature_count<NUMB_OF_ROWS){  
             if(creatures[creature_count].Alive==1){
                 if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos))
                     return RIGHT;
