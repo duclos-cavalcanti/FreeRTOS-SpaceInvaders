@@ -13,9 +13,14 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
 {
 
     ship_t* PlayerShip = calloc (1,sizeof(ship_t));
+    bullet_t* PlayerShipBullet = calloc(1, sizeof(bullet_t));
 
     if(!PlayerShip){
         fprintf(stderr,"Creating Ship failed.\n");
+        exit(EXIT_FAILURE);
+    }
+    if(!PlayerShipBullet){
+        fprintf(stderr,"Creating Ships bullet failed.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -23,25 +28,18 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
     PlayerShip->x_pos = initial_x;
     PlayerShip->y_pos = initial_y;
     PlayerShip->speed = speed;
+    PlayerShip->bullet = PlayerShipBullet;
 
     return PlayerShip;
 }
 
 void CreateShipBullet(ship_t* ship)
 {
+    ship->bullet->x_pos=ship->x_pos;
+    ship->bullet->y_pos=ship->y_pos - SHIP_Y_OFFSET;
+    ship->bullet->speed = SHIP_BULLET_SPEED;
+    ship->bullet->BulletAliveFlag=1;
     
-    bullet_t* ShipBullet = calloc(1,sizeof(bullet_t));
-    if(!ShipBullet){
-        fprintf(stderr, "Creating Ship's Bullet Failed\n");
-        exit(EXIT_FAILURE);
-    }
-
-    ShipBullet->x_pos=ship->x_pos;
-    ShipBullet->y_pos=ship->y_pos - SHIP_Y_OFFSET;
-    ShipBullet->speed = SHIP_BULLET_SPEED;
-    ShipBullet->BulletAliveFlag=1;
-
-    ship->bullet = ShipBullet; 
 }
 
 void vIncrementShipLeft(ship_t* ship)

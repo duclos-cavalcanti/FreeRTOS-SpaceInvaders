@@ -948,7 +948,6 @@ void vTaskShipBulletControl(void *pvParameters)
 
                         if(BunkerCollisionFlag || TopWallCollisionFlag || (CreatureCollisionFlag >=0)){  
                             ShipBuffer.Ship->bullet->BulletAliveFlag=0;
-                            free(ShipBuffer.Ship->bullet);
 
                             if(BunkerCollisionFlag){  
                                 vTaskResume(BunkerShotControlTask);

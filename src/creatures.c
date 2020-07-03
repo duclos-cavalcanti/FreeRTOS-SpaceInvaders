@@ -97,15 +97,15 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
     if(CreatureHitID < NUMB_OF_COLUMNS){ 
         FrontierCreaturesID[CreatureHitID] = FrontierCreaturesID[CreatureHitID] + 8;
     }
-    else if(CreatureHitID < NUMB_OF_COLUMNS*2)
-        FrontierCreaturesID[CreatureHitID] = -1;
     else
-        FrontierCreaturesID[CreatureHitID] = -1;
+        FrontierCreaturesID[CreatureHitID - 8] = -1;
 
 
     printf("FrontierValues: ");
     for(int i=0;i<8;i++)
         printf(" %d |", FrontierCreaturesID[i]);
+
+    printf("  Creature Hit ID: %d\n", CreatureHitID);
 }
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -118,12 +118,15 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
 
     for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
         CreatureID=FrontierCreaturesID[i];
-        if(CreatureID>=0){
+        if(CreatureID>=0 && creatures[CreatureID].Alive == 1){
             CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
                                                               bullet_y_pos,
                                                               &creatures[CreatureID]);
 
-            if(CreatureCollisionID>=0) return CreatureCollisionID;
+            if(CreatureCollisionID>=0) {
+
+                return CreatureCollisionID;
+            }
         }
     }
     return -1;
@@ -280,6 +283,7 @@ void vCreateCreaturesBullet(creature_t* creatures,
         CreatureChoiceID = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
     }
 
+    printf("Chosen Creature to shoot: %d\n", CreatureChoiceID);
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
