@@ -105,7 +105,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
     for(int i=0;i<8;i++)
         printf(" %d |", FrontierCreaturesID[i]);
 
-    printf("  Creature Hit ID: %d\n", CreatureHitID);
+    printf(" Hit ID: %d\n", CreatureHitID);
 }
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -123,10 +123,8 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                                               bullet_y_pos,
                                                               &creatures[CreatureID]);
 
-            if(CreatureCollisionID>=0) {
-
+            if(CreatureCollisionID>=0) 
                 return CreatureCollisionID;
-            }
         }
     }
     return -1;
@@ -247,6 +245,23 @@ void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
         vMoveCreaturesLeftHorizontal(creatures);
 }
 
+void vMoveSingleCreatureVerticalDown(creature_t* creature)
+{
+    creature->y_pos+=CREATURE_HEIGHT;
+}
+
+void vMoveCreaturesVerticalDown(creature_t* creatures)
+{
+    unsigned char CreatureCountID = 0;
+
+    while(CreatureCountID<NUMB_OF_CREATURES){
+        if(creatures[CreatureCountID].Alive==1)
+            vMoveSingleCreatureVerticalDown(&creatures[CreatureCountID]);
+        ++CreatureCountID;
+    }
+}
+
+
 void vUpdateSingleCreaturesSpeed(creature_t* Creature)
 {
     Creature->speed++;
@@ -287,22 +302,6 @@ void vCreateCreaturesBullet(creature_t* creatures,
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
-void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet)
-{
-    CreaturesBullet->y_pos+=CreaturesBullet->speed;
-}
-
-void vDrawCreaturesBullet(bullet_t* CreatureBullet)
-{
-    checkDraw(tumDrawLine(CreatureBullet->x_pos, 
-                          CreatureBullet->y_pos,
-                          CreatureBullet->x_pos, 
-                          CreatureBullet->y_pos+SHIP_BULLET_LENGTH,
-                          CREAT_BULLET_THICKNESS,
-                          White),
-                          __FUNCTION__);
-}
-
 unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short b_ypos)
 {
     if(b_ypos>=BOTTOM_WALLPOSITION - BOTTOM_WALLTHICKNESS/2 - CREATURE_BULLET_SPEED) return 1;
@@ -326,6 +325,21 @@ unsigned char xCheckCreaturesBulletShipCollision(signed short b_xpos,
     else return 0;
 }
 
+void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet)
+{
+    CreaturesBullet->y_pos+=CreaturesBullet->speed;
+}
+
+void vDrawCreaturesBullet(bullet_t* CreatureBullet)
+{
+    checkDraw(tumDrawLine(CreatureBullet->x_pos, 
+                          CreatureBullet->y_pos,
+                          CreatureBullet->x_pos, 
+                          CreatureBullet->y_pos+SHIP_BULLET_LENGTH,
+                          CREAT_BULLET_THICKNESS,
+                          White),
+                          __FUNCTION__);
+}
 void vAlternateAnimation(creature_t* creature)
 {
     if(creature->Position == Position0) creature->Position=Position1;

@@ -808,7 +808,7 @@ unsigned char xCheckShipMoved(void)
     if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
         if (buttons.buttons[KEYCODE(LEFT)]) {
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
-                if(ShipBuffer.Ship->x_pos >= PLAYERSHIP_WIDTH/2)
+                if(ShipBuffer.Ship->x_pos >= PLAYERSHIP_WIDTH*3/4)
                     vIncrementShipLeft(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
                 xSemaphoreGive(buttons.lock);
@@ -818,8 +818,8 @@ unsigned char xCheckShipMoved(void)
         }                            
         if (buttons.buttons[KEYCODE(RIGHT)]) { 
             if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
-                if(ShipBuffer.Ship->x_pos <= SCREEN_WIDTH - PLAYERSHIP_WIDTH/2)
-                vIncrementShipRight(ShipBuffer.Ship); 
+                if(ShipBuffer.Ship->x_pos <= SCREEN_WIDTH - PLAYERSHIP_WIDTH*3/4)
+                    vIncrementShipRight(ShipBuffer.Ship); 
                 xSemaphoreGive(ShipBuffer.lock);
                 xSemaphoreGive(buttons.lock);                                                                                                                                                                
                 return 1;
@@ -1015,6 +1015,15 @@ void vTaskCreaturesBulletControl(void *pvParameters)
             }
     }
 }
+
+unsigned char xCheckDirectionChange(H_Movement_t* LastDirection)
+{
+   if((*LastDirection)!=CreaturesBuffer.HorizontalDirection)
+       return 1;
+   else
+       return 0;
+}
+
 void vTaskCreaturesActionControl(void *pvParameters)
 {
     vSetCreaturesBufferValues();
@@ -1027,7 +1036,10 @@ void vTaskCreaturesActionControl(void *pvParameters)
     TickType_t AnimationPeriod = 500;
     TickType_t WakeRate = 15;
    
-    unsigned char AnimationSpeedChangeThreshold = 3; 
+    static unsigned char AnimationSpeedChangeThreshold = 3; 
+    static unsigned char VerticalMovementThreshold = 10;
+    static unsigned char NumberOfLaps = 0;
+    static H_Movement_t LastHorizontalDirectionOfCreatures = RIGHT;
                             
     while(1){
         
@@ -1043,8 +1055,18 @@ void vTaskCreaturesActionControl(void *pvParameters)
                 xPrevAnimatedTime = xTaskGetTickCount();
             }
             
+            LastHorizontalDirectionOfCreatures = CreaturesBuffer.HorizontalDirection; 
             vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.HorizontalDirection);
-         
+            if(xCheckDirectionChange(&LastHorizontalDirectionOfCreatures)){
+                NumberOfLaps++;
+            }
+
+            if(NumberOfLaps == VerticalMovementThreshold){
+                VerticalMovementThreshold+=VerticalMovementThreshold; 
+                vMoveCreaturesVerticalDown(CreaturesBuffer.Creatures);
+            }
+
+
             if(xTaskGetTickCount() - xPrevShotTime >= ShootingPeriod &&
                 CreaturesBuffer.BulletAliveFlag==0 &&
                 CreaturesBuffer.NumbOfAliveCreatures>0){

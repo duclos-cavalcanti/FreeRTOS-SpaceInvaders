@@ -18,7 +18,7 @@
 
 #define CREATURE_Y_ROW_BEGIN SCREEN_HEIGHT*1/2
 #define CREATURE_X_ROW_BEGIN SCREEN_WIDTH*1/6
-#define CREATURE_X_DIST_APART 60
+#define CREATURE_X_DIST_APART 40
 #define CREATURE_Y_DIST_APART 40
 
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
@@ -110,6 +110,7 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short* FrontierCreaturesID);
 
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
+void vMoveCreaturesVerticalDown(creature_t* creatures);
 
 void vUpdateCreaturesSpeed(creature_t* Creatures);
 
