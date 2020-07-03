@@ -32,7 +32,6 @@ typedef struct ship_t{
 
     unsigned short size;
     bullet_t* bullet;
-    BunkerCollisionStatus_t* BunkerCollisionStatus;
 }ship_t;
 
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed, 

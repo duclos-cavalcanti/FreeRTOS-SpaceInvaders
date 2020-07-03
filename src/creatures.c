@@ -79,21 +79,52 @@ creature_t* CreateCreatures()
     return CreatureArray;
 }
 
+signed short* vAssignFrontierCreatures(creature_t* creatures)
+{
+   signed short* FrontierCreaturesID = calloc(8,sizeof(signed short));
+   if(!FrontierCreaturesID){
+       fprintf(stderr,"Unable to create Frontier creatures ID.");
+       exit(EXIT_FAILURE);
+   }
+   for(int i=0;i<8;i++)
+       FrontierCreaturesID[i]=i;
+
+   return FrontierCreaturesID;
+}
+
+void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID)
+{
+    if(CreatureHitID < NUMB_OF_COLUMNS){ 
+        FrontierCreaturesID[CreatureHitID] = FrontierCreaturesID[CreatureHitID] + 8;
+    }
+    else if(CreatureHitID < NUMB_OF_COLUMNS*2)
+        FrontierCreaturesID[CreatureHitID] = -1;
+    else
+        FrontierCreaturesID[CreatureHitID] = -1;
+
+
+    printf("FrontierValues: ");
+    for(int i=0;i<8;i++)
+        printf(" %d |", FrontierCreaturesID[i]);
+}
+
 signed char xCheckCreaturesCollision(creature_t* creatures,
-                                 signed short bullet_x_pos,
-                                 signed short bullet_y_pos)
+                                     signed short bullet_x_pos,
+                                     signed short bullet_y_pos,
+                                     signed short* FrontierCreaturesID)
 {   
-    unsigned char CreatureCount=0;
+    unsigned char CreatureID=0;
     signed  char CreatureCollisionID=0;
-    while(CreatureCount<NUMB_OF_CREATURES){
-        if(creatures[CreatureCount].Alive==1){
+
+    for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
+        CreatureID=FrontierCreaturesID[i];
+        if(CreatureID>=0){
             CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
                                                               bullet_y_pos,
-                                                              &creatures[CreatureCount]);
+                                                              &creatures[CreatureID]);
 
             if(CreatureCollisionID>=0) return CreatureCollisionID;
         }
-       ++CreatureCount;
     }
     return -1;
 }
@@ -240,11 +271,15 @@ bullet_t CreateCreatureSingleBullet(creature_t* creature)
     return CreatureBullet;
 }
 void vCreateCreaturesBullet(creature_t* creatures, 
-                            bullet_t* CreaturesBullet)
+                            bullet_t* CreaturesBullet,
+                            signed short* FrontierCreaturesID)
 
 {
-    unsigned int CreatureChoiceID=0;
-    CreatureChoiceID = rand()%NUMB_OF_COLUMNS;
+    signed int CreatureChoiceID = -1;
+    while(CreatureChoiceID<0){
+        CreatureChoiceID = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
+    }
+
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
@@ -310,4 +345,3 @@ unsigned char xFetchCreatureValue(unsigned char creatureclassID)
             return 0;
     }
 }
-

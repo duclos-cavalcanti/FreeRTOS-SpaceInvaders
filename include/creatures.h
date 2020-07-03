@@ -79,11 +79,6 @@ typedef enum classes_t{
     HARD
 }classes_t;
 
-typedef enum V_Movement_t{
-    DOWN,
-    UP
-}V_Movement_t;
-
 typedef enum H_Movement_t{
     RIGHT,
     LEFT
@@ -106,10 +101,13 @@ typedef struct creature_t{
 
 
 creature_t* CreateCreatures();
+signed short*  vAssignFrontierCreatures(creature_t* creatures);
+void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID);
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
-                                     signed short bullet_x,
-                                     signed short bullet_y);
+                                     signed short bullet_x_pos,
+                                     signed short bullet_y_pos,
+                                     signed short* FrontierCreaturesID);
 
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
 
@@ -120,7 +118,8 @@ void vUpdateCreaturesSpeed(creature_t* Creatures);
 
 
 void vCreateCreaturesBullet(creature_t* creatures, 
-                            bullet_t* CreaturesBullet);
+                            bullet_t* CreaturesBullet,
+                            signed short* FrontierCreaturesID);
 
 
 void vDrawCreaturesBullet(bullet_t* CreatureBullets);

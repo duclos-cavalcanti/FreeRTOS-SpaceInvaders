@@ -23,28 +23,10 @@ ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short 
     PlayerShip->x_pos = initial_x;
     PlayerShip->y_pos = initial_y;
     PlayerShip->speed = speed;
-    
-    PlayerShip->BunkerCollisionStatus=CreateBunkerCollisionStatus();
 
     return PlayerShip;
 }
 
-
-
-BunkerCollisionStatus_t* CreateBunkerCollisionStatus()
-{
-    BunkerCollisionStatus_t* BunkerCollisionStatus = calloc(1, sizeof(BunkerCollisionStatus_t));
-
-    if(!BunkerCollisionStatus){
-        fprintf(stderr,"Creating BCS failed. \n");
-        exit(EXIT_FAILURE);
-    }
-    
-    BunkerCollisionStatus->BunkerID = NONEXISTENT_BUNKER;
-    BunkerCollisionStatus->HIT = 0;
-
-    return BunkerCollisionStatus;
-}
 void CreateShipBullet(ship_t* ship)
 {
     
