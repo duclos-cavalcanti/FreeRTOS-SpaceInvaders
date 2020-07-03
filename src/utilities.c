@@ -34,7 +34,7 @@ void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect)
     }
 }
 
-unsigned int xFetchSelectedColor(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption)
+unsigned int xFetchSelectedColor(unsigned char CurrentSelect, unsigned char ConsideredOption)
 {
     if(ConsideredOption == CurrentSelect)
         return Green;
@@ -58,22 +58,24 @@ void vAssignCreaturesImages(creature_t* Creatures, image_handle_t* ImageCatalog)
     }
 }
 
-NumberToMatrix_t xFindMatrixValue(unsigned char CreatureChoiceID)
+void vDownGameOverSelection(SelectedGameOverOption_t* CurrentSelect)
 {
-    NumberToMatrix_t MatrixValues;
-    if(CreatureChoiceID<NUMB_OF_COLUMNS){
-        MatrixValues.row_x = 0;
-        MatrixValues.column_y = CreatureChoiceID; 
+    switch(*CurrentSelect){
+        case PlayAgain:
+            (*CurrentSelect)++;
+            break;
+        case Quit:
+           (*CurrentSelect) = PlayAgain;
     }
-    else{
-        unsigned short Remainder = CreatureChoiceID % NUMB_OF_COLUMNS; 
-        MatrixValues.column_y=Remainder;
-        if(CreatureChoiceID < 16)
-            MatrixValues.row_x=1;
-        else if(CreatureChoiceID < 24)
-            MatrixValues.row_x=2;
-        else 
-            MatrixValues.row_x=3;
+}
+
+void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect)
+{
+    switch(*CurrentSelect){
+        case Quit:
+            (*CurrentSelect)--;
+            break;
+        case PlayAgain:
+           (*CurrentSelect) = Quit;
     }
-    return MatrixValues;
 }

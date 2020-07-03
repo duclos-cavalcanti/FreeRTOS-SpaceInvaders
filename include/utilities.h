@@ -12,7 +12,10 @@ typedef struct NumberToMatrix_t{
 void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect);
 void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect);
 
-unsigned int xFetchSelectedColor(SelectedMenuOption_t CurrentSelect, SelectedMenuOption_t ConsideredOption);
+void vDownGameOverSelection(SelectedGameOverOption_t* CurrentSelect);
+void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect);
+
+unsigned int xFetchSelectedColor(unsigned char CurrentSelect, unsigned char ConsideredOption);
 void vAssignCreaturesImages(creature_t* Creatures, image_handle_t* ImageCatalog);
 
 #endif

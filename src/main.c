@@ -135,7 +135,7 @@ typedef struct PausedGameInfoBuffer_t{
 static PausedGameInfoBuffer_t PausedGameInfoBuffer = { 0 };
 
 typedef struct GameOverInfoBuffer_t{
-    GameOverActions_t GameOverActions;
+    SelectedGameOverOption_t SelectedGameOverOption;
     SemaphoreHandle_t lock;
 }GameOverInfoBuffer_t;
 static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
@@ -258,7 +258,7 @@ void vSetGameOverInfoBufferValues()
 {
     xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY);
 
-        GameOverInfoBuffer.GameOverActions = RemainGameOverScreen;
+        GameOverInfoBuffer.SelectedGameOverOption = PlayAgain;
 
     xSemaphoreGive(GameOverInfoBuffer.lock);
 }
@@ -360,16 +360,17 @@ void vSwapBuffers(void *pvParameters)
 void vHandleGameOverStateSM()
 {
     if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        switch(GameOverInfoBuffer.GameOverActions){
-            case GoToMainMenu:
+        switch(GameOverInfoBuffer.SelectedGameOverOption){
+            case PlayAgain:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
                 if(StateQueue)
                     vPrepareNewGameValues();
                     xQueueSend(StateQueue,&MainMenuStateSignal, 0);
 
-            case RemainGameOverScreen:
+            case Quit:
             default:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
+                exit(EXIT_SUCCESS);
                break; 
         }
         xSemaphoreGive(GameOverInfoBuffer.lock);
@@ -521,7 +522,16 @@ void vDrawStaticTexts(void)
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 }
-void vDrawMainMenu(void)
+
+void vDrawSpaceInvadersBanner()
+{
+    checkDraw(tumDrawLoadedImage(TitleScreen,
+                                 SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
+                                 SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
+                                 __FUNCTION__);
+}
+
+void vDrawMainMenuOptions(void)
 {
     static char SingleplayerChar[20];
     static char MultiplayerChar[20];
@@ -530,11 +540,6 @@ void vDrawMainMenu(void)
 
     static char LeaveChar[20];
     static int LeaveCharWidth=0;
-
-    checkDraw(tumDrawLoadedImage(TitleScreen,
-                                 SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
-                                 SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
-                                 __FUNCTION__);
 
     if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){  
 
@@ -566,7 +571,7 @@ void vDrawMainMenu(void)
     }
 }
 
-unsigned char xCheckMenuEnterPressed()
+unsigned char xCheckEnterPressed()
 {
     if(xSemaphoreTake(buttons.lock, portMAX_DELAY)==pdTRUE){
         if(buttons.buttons[KEYCODE(RETURN)]){
@@ -581,7 +586,6 @@ unsigned char xCheckMenuEnterPressed()
 void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
-   xGetButtonInput(); 
     if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
 
         if (buttons.buttons[KEYCODE(DOWN)]) {
@@ -617,9 +621,10 @@ void vTaskMainMenu(void *pvParameters)
     unsigned char DOWN_DEBOUNCE_STATE = 0;
 
     while (1) {
+        xGetButtonInput(); 
         xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE, 
                                   &DOWN_DEBOUNCE_STATE);
-        if(xCheckMenuEnterPressed())
+        if(xCheckEnterPressed())
                 vHandleStateMachineActivation();
 
         if(DrawSignal)
@@ -628,7 +633,8 @@ void vTaskMainMenu(void *pvParameters)
 
                     tumDrawClear(Black); 
                     vDrawStaticTexts();
-                    vDrawMainMenu();
+                    vDrawSpaceInvadersBanner();
+                    vDrawMainMenuOptions();
                     vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
@@ -1134,6 +1140,24 @@ unsigned char xCheckPausePressed()
     }
     return 0;
 }
+
+unsigned char xCheckGPressed()
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
+        if (buttons.buttons[KEYCODE(G)]){
+            xSemaphoreGive(buttons.lock);
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+                OutsideGameActionsBuffer.PlayerOutsideGameActions = LostGameAction;
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+            }
+            return 1;
+        }              
+        xSemaphoreGive(buttons.lock);
+        return 0;
+    }
+    return 0;
+}
+
 void xCheckQuit(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
@@ -1161,7 +1185,7 @@ void vTaskPlayingGame(void *pvParameters)
     while(1){
         xGetButtonInput();
         xCheckQuit();
-        if(xCheckPausePressed() || xCheckLivesLeft())
+        if(xCheckPausePressed() || xCheckLivesLeft() || xCheckGPressed())
             vHandleStateMachineActivation();
         
         xCheckShipMoved();
@@ -1287,21 +1311,21 @@ void vDrawInstructionsGameOver()
     char GoToMainMenuChar[20];
     int GoToMainMenuCharWidth=0;
 
-    sprintf(GoToMainMenuChar,"[M]ain Menu");
+    sprintf(GoToMainMenuChar,"Play Again");
     if(!tumGetTextSize((char *)GoToMainMenuChar,&GoToMainMenuCharWidth, NULL)){
                     checkDraw(tumDrawText(GoToMainMenuChar,
                                           SCREEN_WIDTH*2/4-GoToMainMenuCharWidth/2,
                                           SCREEN_HEIGHT*50/100 - DEFAULT_FONT_SIZE/2,
-                                          White),
+                                          xFetchSelectedColor(GameOverInfoBuffer.SelectedGameOverOption, PlayAgain)),
                                           __FUNCTION__);
     }
 
-    sprintf(QuitChar,"[Q]uit");
+    sprintf(QuitChar,"Leave the Game");
     if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
                     checkDraw(tumDrawText(QuitChar,
                                           SCREEN_WIDTH*2/4-QuitCharWidth/2,
                                           SCREEN_HEIGHT*65/100 - DEFAULT_FONT_SIZE/2,
-                                          White),
+                                          xFetchSelectedColor(GameOverInfoBuffer.SelectedGameOverOption, Quit)),
                                           __FUNCTION__);
     }
 }
@@ -1312,23 +1336,32 @@ void vDrawGameOverBanner()
                                  SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(GameOver)/2),
                                  __FUNCTION__);
 }
-unsigned char xCheckGoToMainMenuPressed()
-{
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
-        if (buttons.buttons[KEYCODE(M)]){
-            xSemaphoreGive(buttons.lock);
-            if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                GameOverInfoBuffer.GameOverActions = GoToMainMenu;
-                xSemaphoreGive(GameOverInfoBuffer.lock);
-            }
-            return 1;
-        }              
-        xSemaphoreGive(buttons.lock);
-        return 0;
-    }
-    return 0;
-}
 
+void  xCheckGameOverSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
+                                unsigned char* DOWN_DEBOUNCE_STATE)
+{
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+
+        if (buttons.buttons[KEYCODE(DOWN)]) {
+            if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
+                if(xSemaphoreTake(GameOverInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                    vDownGameOverSelection(&GameOverInfoBuffer.SelectedGameOverOption);
+                    xSemaphoreGive(GameOverInfoBuffer.lock);
+                }
+        }                            
+        else if (buttons.buttons[KEYCODE(UP)]) { 
+            if(buttons.buttons[KEYCODE(UP)]!=(*UP_DEBOUNCE_STATE))
+                if(xSemaphoreTake(GameOverInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                    vDownGameOverSelection(&GameOverInfoBuffer.SelectedGameOverOption);
+                    xSemaphoreGive(GameOverInfoBuffer.lock);
+                }
+        }   
+
+        (*UP_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(UP)];
+        (*DOWN_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(DOWN)];
+        xSemaphoreGive(buttons.lock);                                                                                                                                                                
+    }   
+}
 void vTaskGameOver(void *pvParameters)
 {
     GameOver = tumDrawLoadImage("../resources/GameOver.bmp");
@@ -1338,11 +1371,16 @@ void vTaskGameOver(void *pvParameters)
 
     vSetGameOverInfoBufferValues();
 
+    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char DOWN_DEBOUNCE_STATE = 0;
+
     while(1){
         xGetButtonInput();
-        xCheckQuit();
-        if(xCheckGoToMainMenuPressed())
-            vHandleStateMachineActivation();
+        xCheckGameOverSelectionChange(&UP_DEBOUNCE_STATE, 
+                                      &DOWN_DEBOUNCE_STATE);
+
+        if(xCheckEnterPressed())
+                vHandleStateMachineActivation();
 
         if(DrawSignal) 
             if(xSemaphoreTake(DrawSignal, portMAX_DELAY)==pdTRUE){
