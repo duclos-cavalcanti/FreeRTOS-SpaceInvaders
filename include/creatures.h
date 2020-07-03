@@ -5,12 +5,12 @@
 #include "ship.h"
 #include "main.h"
 
-#define NUMB_OF_ROWS 2
+#define NUMB_OF_ROWS 4
 #define NUMB_OF_COLUMNS 8
 #define NUMB_OF_CREATURES NUMB_OF_ROWS*NUMB_OF_COLUMNS
 
 #define CREATURE_SPEED 1
-#define CREATURE_BULLET_SPEED 5
+#define CREATURE_BULLET_SPEED 8
 #define CREAT_BULLET_THICKNESS 3
 
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
@@ -107,6 +107,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x_pos,
                                      signed short bullet_y_pos,
+                                     H_Movement_t Direction,
                                      signed short* FrontierCreaturesID);
 
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
@@ -126,9 +127,6 @@ void vCreateCreaturesBullet(creature_t* creatures,
 void vDrawCreaturesBullet(bullet_t* CreatureBullets);
 
 void vUpdateCreaturesBulletPos(bullet_t* CreaturesBullet);
-
-signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
-                                          creature_t* creature);
 
 unsigned char xCheckCreaturesBulletCollisonBottomWall(signed short y_pos);
 

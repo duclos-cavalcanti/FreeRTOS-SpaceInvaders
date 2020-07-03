@@ -33,7 +33,10 @@ int* SetTypes()
     int* CreaturesTypes = calloc(NUMB_OF_ROWS, sizeof(int));
 
     CreaturesTypes[0]=EASY;
-    CreaturesTypes[1]=MEDIUM;
+    CreaturesTypes[1]=EASY;
+    CreaturesTypes[2]=MEDIUM;
+    CreaturesTypes[3]=MEDIUM;
+
     return CreaturesTypes;
 }
 
@@ -94,47 +97,35 @@ signed short* vAssignFrontierCreatures(creature_t* creatures)
 
 void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID)
 {
-    if(CreatureHitID < NUMB_OF_COLUMNS){ 
-        FrontierCreaturesID[CreatureHitID] = FrontierCreaturesID[CreatureHitID] + 8;
-    }
-    else
-        FrontierCreaturesID[CreatureHitID - 8] = -1;
+    if(CreatureHitID < NUMB_OF_COLUMNS)
+        FrontierCreaturesID[CreatureHitID] += 8;
+    else if(CreatureHitID < NUMB_OF_COLUMNS*2)
+        FrontierCreaturesID[CreatureHitID - 8] += 8;
+    else if(CreatureHitID < NUMB_OF_COLUMNS*3)
+        FrontierCreaturesID[CreatureHitID - 16] += 8;
+    else 
+        FrontierCreaturesID[CreatureHitID - 24] = -1;
 
-
-    printf("FrontierValues: ");
-    for(int i=0;i<8;i++)
-        printf(" %d |", FrontierCreaturesID[i]);
-
-    printf(" Hit ID: %d\n", CreatureHitID);
-}
-
-signed char xCheckCreaturesCollision(creature_t* creatures,
-                                     signed short bullet_x_pos,
-                                     signed short bullet_y_pos,
-                                     signed short* FrontierCreaturesID)
-{   
-    unsigned char CreatureID=0;
-    signed  char CreatureCollisionID=0;
-
-    for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
-        CreatureID=FrontierCreaturesID[i];
-        if(CreatureID>=0 && creatures[CreatureID].Alive == 1){
-            CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
-                                                              bullet_y_pos,
-                                                              &creatures[CreatureID]);
-
-            if(CreatureCollisionID>=0) 
-                return CreatureCollisionID;
-        }
-    }
-    return -1;
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
-                                      creature_t* creature)
+                                          H_Movement_t Direction, creature_t* creature)
 {
-    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 - SHIP_BULLET_THICKNESS/2;
-    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2;
+    signed short R_OFFSET = 0;
+    signed short L_OFFSET = 0;
+
+    if(Direction == RIGHT){
+        R_OFFSET = creature->speed;    
+        L_OFFSET = 0;
+    }
+    else{
+        L_OFFSET = creature->speed;    
+        R_OFFSET = 0;
+    }
+
+    signed short LEFT_LIMIT = creature->x_pos - CREATURE_WIDTH/2 - SHIP_BULLET_THICKNESS/2 - L_OFFSET;
+    signed short RIGHT_LIMIT = creature->x_pos + CREATURE_WIDTH/2 + SHIP_BULLET_THICKNESS/2 + R_OFFSET;
+
     signed short LOWER_LIMIT = creature->y_pos + CREATURE_HEIGHT/2;
     signed short UPPER_LIMIT = creature->y_pos - CREATURE_HEIGHT/2;
 
@@ -146,22 +137,50 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
         return -1;
 }
 
+signed char xCheckCreaturesCollision(creature_t* creatures,
+                                     signed short bullet_x_pos,
+                                     signed short bullet_y_pos,
+                                     H_Movement_t Direction,
+                                     signed short* FrontierCreaturesID)
+{   
+    unsigned char CreatureID=0;
+    signed  char CreatureCollisionID=0;
+
+    for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
+        CreatureID=FrontierCreaturesID[i];
+        if(CreatureID>=0 && creatures[CreatureID].Alive == 1){
+            CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
+                                                              bullet_y_pos,
+                                                              Direction,
+                                                              &creatures[CreatureID]);
+
+            if(CreatureCollisionID>=0) 
+                return CreatureCollisionID;
+        }
+    }
+    return -1;
+}
+
 void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures)
 {
     creature->Alive=0; 
     (*NumbOfAliveCreatures)--;
 }
 
-unsigned char xCheckLeftEdgeDistance(signed short x_pos)
+unsigned char xCheckLeftEdgeDistance(creature_t creature)
 {
-    if(x_pos - CREATURE_SPEED <=  CREATURE_WIDTH/2) return 1;
-    else return 0;
+    if(creature.Alive == 1)
+        if(creature.x_pos - creature.speed <=  CREATURE_WIDTH/2) 
+            return 1;
+    return 0;
 }
 
-unsigned char xCheckRightEdgeDistance(signed short x_pos)
+unsigned char xCheckRightEdgeDistance(creature_t creature)
 {
-    if(x_pos + CREATURE_SPEED >= CREATURE_MIN_DIST_WALL) return 1;
-    else return 0;
+    if(creature.Alive==1)
+        if(creature.x_pos + creature.speed >= CREATURE_MIN_DIST_WALL) 
+            return 1;
+    return 0;
 }
 
 H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
@@ -174,9 +193,15 @@ H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
         creature_count=ROW_END;        
         while(creature_count >= ROW_BEGIN){
             if(creatures[creature_count].Alive==1 ||
-               creatures[creature_count+8].Alive==1){
-                if(xCheckRightEdgeDistance(creatures[creature_count].x_pos) ||
-                   xCheckRightEdgeDistance(creatures[creature_count+8].x_pos))
+               creatures[creature_count+8].Alive==1 ||
+               creatures[creature_count+16].Alive==1 ||
+               creatures[creature_count+24].Alive==1){
+
+                if(xCheckRightEdgeDistance(creatures[creature_count]) ||
+                   xCheckRightEdgeDistance(creatures[creature_count+8]) ||
+                   xCheckRightEdgeDistance(creatures[creature_count+16]) ||
+                   xCheckRightEdgeDistance(creatures[creature_count+24]))
+
                     return LEFT;
                 else 
                     return RIGHT;
@@ -189,9 +214,15 @@ H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
         creature_count = ROW_BEGIN;
         while(creature_count<=ROW_END){  
             if(creatures[creature_count].Alive==1 ||
-               creatures[creature_count+8].Alive==1){
-                if(xCheckLeftEdgeDistance(creatures[creature_count].x_pos) ||
-                   xCheckLeftEdgeDistance(creatures[creature_count+8].x_pos))
+               creatures[creature_count+8].Alive==1 ||
+               creatures[creature_count+16].Alive==1 ||
+               creatures[creature_count+24].Alive==1){
+
+                if(xCheckLeftEdgeDistance(creatures[creature_count]) ||
+                   xCheckLeftEdgeDistance(creatures[creature_count+8]) ||
+                   xCheckLeftEdgeDistance(creatures[creature_count+16]) ||
+                   xCheckLeftEdgeDistance(creatures[creature_count+24]))
+
                     return RIGHT;
                 else 
                     return LEFT;
@@ -298,7 +329,6 @@ void vCreateCreaturesBullet(creature_t* creatures,
         CreatureChoiceID = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
     }
 
-    printf("Chosen Creature to shoot: %d\n", CreatureChoiceID);
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
