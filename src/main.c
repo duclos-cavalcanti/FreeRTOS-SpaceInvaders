@@ -408,6 +408,10 @@ void vHandlePlayingGameStateSM()
                 if(StateQueue)
                     xQueueSend(StateQueue,&GameOverStateSignal, 0);
                 break;
+            case WonGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&NextLevelStateSignal, 0);
             case NoAction:
             default:
                break;
@@ -646,6 +650,9 @@ void vTaskMainMenu(void *pvParameters)
 
 void vDrawInstructionsWithinGame()
 {
+    char GoToGameOverChar[40];
+    int GoToGameOverCharWidth=0;
+
     char QuitChar[20];
     int QuitCharWidth=0;
 
@@ -655,7 +662,7 @@ void vDrawInstructionsWithinGame()
     sprintf(QuitChar,"[Q]uit");
     if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
                     checkDraw(tumDrawText(QuitChar,
-                                          SCREEN_WIDTH*2/4-QuitCharWidth/2,
+                                          SCREEN_WIDTH*2/4-QuitCharWidth/2 + 90,
                                           SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                                           White),
                                           __FUNCTION__);
@@ -664,7 +671,16 @@ void vDrawInstructionsWithinGame()
     sprintf(PauseChar,"[P]ause");
     if(!tumGetTextSize((char *)PauseChar,&PauseCharWidth, NULL)){
                     checkDraw(tumDrawText(PauseChar,
-                                          SCREEN_WIDTH*2/4-PauseCharWidth/2 + 70,
+                                          SCREEN_WIDTH*2/4-PauseCharWidth/2 + 170,
+                                          SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                                          White),
+                                          __FUNCTION__);
+    }
+
+    sprintf(GoToGameOverChar,"[G]ame Session Over");
+    if(!tumGetTextSize((char *)GoToGameOverChar,&GoToGameOverCharWidth, NULL)){
+                    checkDraw(tumDrawText(GoToGameOverChar,
+                                          SCREEN_WIDTH*2/4-GoToGameOverCharWidth/2 - 35,
                                           SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                                           White),
                                           __FUNCTION__);
@@ -1477,7 +1493,8 @@ void vStateMachine(void *pvParameters){
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskResume(GameOverTask);
                             break;
-
+                        
+                        case NextLevelState:
                         default:
                             break;
                     }

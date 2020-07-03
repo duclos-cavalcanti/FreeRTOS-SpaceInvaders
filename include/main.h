@@ -50,7 +50,8 @@ typedef enum SelectedMenuOption_t{
 typedef enum PlayerOutsideGameActions_t{
     NoAction,
     PauseGameAction,
-    LostGameAction 
+    LostGameAction,
+    WonGameAction
 }PlayerOutsideGameActions_t;
 
 typedef enum PausedGameActions_t{
