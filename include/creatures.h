@@ -113,6 +113,11 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
 void vMoveCreaturesVerticalDown(creature_t* creatures);
 
+unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
+                                          signed short* FrontierCreaturesID,
+                                          bunkers_t* Bunkers);
+
+
 void vUpdateCreaturesSpeed(creature_t* Creatures);
 
 

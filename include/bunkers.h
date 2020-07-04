@@ -67,6 +67,9 @@ bunkers_t* CreateBunkers();
 unsigned char xCheckBunkersCollision(signed short bullet_xpos, signed short bullet_ypos,
                                      bunkers_t bunkers);
 
-void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID);
+unsigned char xCheckSingleCreatureBunkerCollision(signed short c_xpos, signed short c_ypos,
+                                                  bunkers_t* bunkers);
 
+void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID);
+void vKillBunker(bunkers_t* bunkers, unsigned char bunkerID);
 #endif

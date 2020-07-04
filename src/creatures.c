@@ -89,8 +89,10 @@ signed short* vAssignFrontierCreatures(creature_t* creatures)
        fprintf(stderr,"Unable to create Frontier creatures ID.");
        exit(EXIT_FAILURE);
    }
+
    for(int i=0;i<8;i++)
        FrontierCreaturesID[i]=i;
+
 
    return FrontierCreaturesID;
 }
@@ -106,6 +108,11 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
     else 
         FrontierCreaturesID[CreatureHitID - 24] = -1;
 
+    printf("HIT: %d ---> Frontier: ", CreatureHitID);
+    for(int i=0;i<NUMB_OF_COLUMNS;++i)
+        printf(" %d | ", FrontierCreaturesID[i]);
+
+    printf("\n");
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
@@ -143,12 +150,12 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                      H_Movement_t Direction,
                                      signed short* FrontierCreaturesID)
 {   
-    unsigned char CreatureID=0;
+    signed  char CreatureID=0;
     signed  char CreatureCollisionID=0;
 
     for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
         CreatureID=FrontierCreaturesID[i];
-        if(CreatureID>=0 && creatures[CreatureID].Alive == 1){
+        if(CreatureID>=0){
             CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
                                                               bullet_y_pos,
                                                               Direction,
@@ -159,6 +166,28 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
         }
     }
     return -1;
+}
+
+unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
+                                          signed short* FrontierCreaturesID,
+                                          bunkers_t* Bunkers)
+{
+    signed short CreatureID=0;
+    unsigned short BunkerCollisionID = 0;
+
+    for(int i=0;i<NUMB_OF_COLUMNS;++i){
+        CreatureID=FrontierCreaturesID[i];
+        if(CreatureID>=0){
+            BunkerCollisionID=xCheckSingleCreatureBunkerCollision(creatures[CreatureID].x_pos,
+                                                                  creatures[CreatureID].y_pos,
+                                                                  Bunkers);
+
+
+            if(BunkerCollisionID>0) 
+                return BunkerCollisionID;
+        }
+    }
+    return 0;
 }
 
 void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures)

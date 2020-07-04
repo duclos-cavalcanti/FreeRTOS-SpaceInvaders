@@ -122,6 +122,18 @@ unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos, bu
         return 0;
 }
 
+unsigned char xCheckSingleCreatureBunkerCollision(signed short c_xpos, 
+                                                  signed short c_ypos,
+                                                  bunkers_t* bunkers)
+{
+    for(int i=0;i<4;++i){
+        if(c_ypos >= BUNKERS_UPPERLIMIT) 
+            return xCheckBunkerTopSideCollision(c_xpos, bunkers[i]);
+    }
+    return 0;
+}
+
+
 void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID)
 {
     switch(bunkerID){
@@ -140,6 +152,33 @@ void vUpdateBunkersStatus(bunkers_t* bunkers, unsigned char bunkerID)
         case B4:
             if(bunkers->b4Lives>0)
                 bunkers->b4Lives--;
+            break;
+
+        case NONEXISTENT_BUNKER:
+        default: 
+            break;
+    }
+    
+}
+
+void vKillBunker(bunkers_t* bunkers, unsigned char bunkerID)
+{
+    switch(bunkerID){
+        case B1:
+            if(bunkers->b1Lives>0)
+                bunkers->b1Lives=0;
+            break;
+        case B2:
+            if(bunkers->b2Lives>0)
+                bunkers->b2Lives=0;
+            break;
+        case B3:
+            if(bunkers->b3Lives>0)
+                bunkers->b3Lives=0;
+            break;
+        case B4:
+            if(bunkers->b4Lives>0)
+                bunkers->b4Lives=0;
             break;
 
         case NONEXISTENT_BUNKER:
