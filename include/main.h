@@ -3,7 +3,7 @@
 
 #define PLAYERSHIP_HEIGHT 10
 #define PLAYERSHIP_WIDTH 30
-
+#define PLAYERSHIP_Y_BEGIN SCREEN_HEIGHT*88/100
 #define CREATURE_HEIGHT 21
 #define CREATURE_WIDTH 27
 
@@ -38,7 +38,8 @@ typedef enum GameState_t{
     PlayingState,
     NextLevelState,
     PausedState,
-    GameOverState
+    GameOverState,
+    ResetGameState
 }GameState_t;
 
 typedef enum SelectedMenuOption_t{
@@ -51,7 +52,8 @@ typedef enum PlayerOutsideGameActions_t{
     NoAction,
     PauseGameAction,
     LostGameAction,
-    WonGameAction
+    WonGameAction,
+    ResetGameAction
 }PlayerOutsideGameActions_t;
 
 typedef enum PausedGameActions_t{

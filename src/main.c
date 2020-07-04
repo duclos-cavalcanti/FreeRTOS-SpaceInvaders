@@ -71,6 +71,7 @@ const unsigned char PlayingStateSignal=PlayingState;;
 const unsigned char PausedGameStateSignal=PausedState;
 const unsigned char GameOverStateSignal=GameOverState;
 const unsigned char NextLevelStateSignal=NextLevelState;
+const unsigned char ResetGameStateSignal=ResetGameState;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -216,7 +217,7 @@ void vSetShipsBufferValues()
 {
     xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY);
 
-        ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,SCREEN_HEIGHT*88/100,SHIPSPEED,
+        ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,PLAYERSHIP_Y_BEGIN,SHIPSPEED,
                                     Green, SHIPSIZE);
         ShipBuffer.BulletCrashed=0;
 
@@ -439,6 +440,9 @@ void vHandlePlayingGameStateSM()
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if(StateQueue)
                     xQueueSend(StateQueue,&NextLevelStateSignal, 0);
+            case ResetGameAction:
+                if (StateQueue)
+                    xQueueSend(StateQueue,&ResetGameStateSignal, 0);
             case NoAction:
             default:
                break;
@@ -477,6 +481,7 @@ void vHandleStateMachineActivation()
 
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
+            case ResetGameState:
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleMainMenuStateSM();
@@ -679,8 +684,8 @@ void vTaskMainMenu(void *pvParameters)
 
 void vDrawInstructionsWithinGame()
 {
-    char GoToGameOverChar[40];
-    int GoToGameOverCharWidth=0;
+    char ResetGameChar[40];
+    int ResetGameCharWidth=0;
 
     char QuitChar[20];
     int QuitCharWidth=0;
@@ -706,10 +711,10 @@ void vDrawInstructionsWithinGame()
                                           __FUNCTION__);
     }
 
-    sprintf(GoToGameOverChar,"[G]ame Session Over");
-    if(!tumGetTextSize((char *)GoToGameOverChar,&GoToGameOverCharWidth, NULL)){
-                    checkDraw(tumDrawText(GoToGameOverChar,
-                                          SCREEN_WIDTH*2/4-GoToGameOverCharWidth/2 - 35,
+    sprintf(ResetGameChar,"[R]eset Game");
+    if(!tumGetTextSize((char *)ResetGameChar,&ResetGameCharWidth, NULL)){
+                    checkDraw(tumDrawText(ResetGameChar,
+                                          SCREEN_WIDTH*2/4-ResetGameCharWidth/2 - 35,
                                           SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                                           White),
                                           __FUNCTION__);
@@ -1091,14 +1096,14 @@ void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures
     (*LastHorizontalDirectionOfCreatures) = CreaturesBuffer.HorizontalDirection; 
     vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.HorizontalDirection);
     if(xCheckDirectionChange(LastHorizontalDirectionOfCreatures))
-        NumberOfLaps++;
+        (*NumberOfLaps)++;
 }
 
 void vVerticalCreatureControl(unsigned char* NumberOfLaps, unsigned char* VerticalMovementThreshold)
 {
     if((*NumberOfLaps) == (*VerticalMovementThreshold)){
         (*NumberOfLaps)=0;
-        if((*VerticalMovementThreshold) > 1)
+        if((*VerticalMovementThreshold) > 2)
             (*VerticalMovementThreshold)--;
         vMoveCreaturesVerticalDown(CreaturesBuffer.Creatures);
     }
@@ -1113,6 +1118,7 @@ void vTriggerCreaturesBunkerDestruction()
 
         xSemaphoreGive(BunkersBuffer.lock);
         if(BunkerCreatureCollisionID > 0){
+            vTaskResume(BunkerCreaturesCrashedTask);
             xTaskNotify(BunkerCreaturesCrashedTask, (uint32_t) BunkerCreatureCollisionID, eSetValueWithOverwrite);
         }
     }
@@ -1156,7 +1162,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
     TickType_t WakeRate = 15;
    
     static unsigned char AnimationSpeedChangeThreshold = NUMB_OF_CREATURES - 5;
-    static unsigned char VerticalMovementThreshold = 10;
+    static unsigned char VerticalMovementThreshold = 5;
     static unsigned char NumberOfLaps = 0;
     static H_Movement_t LastHorizontalDirectionOfCreatures = RIGHT;
 
@@ -1179,12 +1185,10 @@ void vTaskCreaturesActionControl(void *pvParameters)
 
             vCreaturesInitiateShoot(&xPrevShotTime);
 
-
             vTriggerCreaturesBunkerDestruction();
 
 
         xSemaphoreGive(CreaturesBuffer.lock);
-
         }
 
         vTaskDelayUntil(&xLastWakeTime, 
@@ -1266,13 +1270,13 @@ unsigned char xCheckPausePressed()
     return 0;
 }
 
-unsigned char xCheckGPressed()
+unsigned char xCheckResetPressed()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
-        if (buttons.buttons[KEYCODE(G)]){
+        if (buttons.buttons[KEYCODE(R)]){
             xSemaphoreGive(buttons.lock);
             if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
-                OutsideGameActionsBuffer.PlayerOutsideGameActions = LostGameAction;
+                OutsideGameActionsBuffer.PlayerOutsideGameActions = ResetGameAction;
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
             }
             return 1;
@@ -1300,6 +1304,24 @@ unsigned char  xCheckCreaturesLeft()
     return 0;
 }
 
+unsigned char xCheckCreaturesReachedBottom()
+{
+    if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+        if(xCheckFrontierReachedBottom(CreaturesBuffer.Creatures,
+                                        CreaturesBuffer.FrontierCreaturesID)){
+            xSemaphoreGive(CreaturesBuffer.lock);
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+                OutsideGameActionsBuffer.PlayerOutsideGameActions = LostGameAction;
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+            }
+            return 1;
+        }
+        xSemaphoreGive(CreaturesBuffer.lock);
+        return 0;
+    }
+    return 0;
+}
+
 void vTaskPlayingGame(void *pvParameters)
 {
     PlayerShip=tumDrawLoadImage("../resources/player.bmp");
@@ -1316,7 +1338,8 @@ void vTaskPlayingGame(void *pvParameters)
 
     while(1){
         xGetButtonInput();
-        if(xCheckPausePressed() || xCheckLivesLeft() || xCheckGPressed() || xCheckCreaturesLeft())
+        if(xCheckPausePressed() || xCheckLivesLeft() || xCheckResetPressed() || 
+           xCheckCreaturesLeft() || xCheckCreaturesReachedBottom())
             vHandleStateMachineActivation();
         
         xCheckShipMoved();
@@ -1606,6 +1629,7 @@ void vRecreateGame()
         vTaskSuspend(CreaturesActionControlTask);
     }
 }
+
 void vStateMachine(void *pvParameters){
     unsigned char current_state = BEGIN;
     unsigned char changed_state = 1;
@@ -1643,6 +1667,7 @@ void vStateMachine(void *pvParameters){
                             break;
 
                         case PlayingState:
+
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
@@ -1662,6 +1687,7 @@ void vStateMachine(void *pvParameters){
                             break;
 
                         case GameOverState:
+
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
@@ -1670,11 +1696,21 @@ void vStateMachine(void *pvParameters){
                             break;
                         
                         case NextLevelState:
+
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
                             vRecreateGame();
                             if(NextLevelTask) vTaskResume(NextLevelTask);
+                            break;
+
+                        case ResetGameState:
+
+                            if(GameOverTask) vTaskSuspend(GameOverTask);
+                            if(PausedGameTask) vTaskSuspend(PausedGameTask);
+                            if(NextLevelTask) vTaskSuspend(NextLevelTask);
+                            vRecreateGame();
+                            if(MainMenuTask) vTaskResume(MainMenuTask);
                             break;
                         default:
                             break;

@@ -117,6 +117,8 @@ unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
                                           signed short* FrontierCreaturesID,
                                           bunkers_t* Bunkers);
 
+unsigned char xCheckFrontierReachedBottom(creature_t* creatures,
+                                          signed short* FrontierCreaturesID);
 
 void vUpdateCreaturesSpeed(creature_t* Creatures);
 

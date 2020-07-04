@@ -179,12 +179,38 @@ unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
         CreatureID=FrontierCreaturesID[i];
         if(CreatureID>=0){
             BunkerCollisionID=xCheckSingleCreatureBunkerCollision(creatures[CreatureID].x_pos,
-                                                                  creatures[CreatureID].y_pos,
+                                                                  creatures[CreatureID].y_pos + CREATURE_WIDTH/2,
                                                                   Bunkers);
 
 
             if(BunkerCollisionID>0) 
                 return BunkerCollisionID;
+        }
+    }
+    return 0;
+}
+
+unsigned char xCheckSingleCreatureReachedBottom(creature_t creature)
+{
+    if(creature.y_pos + CREATURE_HEIGHT/2 >= PLAYERSHIP_Y_BEGIN - PLAYERSHIP_HEIGHT/2)
+        return 1;
+    else
+        return 0;
+}
+
+unsigned char xCheckFrontierReachedBottom(creature_t* creatures,
+                                  signed short* FrontierCreaturesID)
+{
+    signed short CreatureID=0;
+    unsigned short CreatureReachedBottomID = 0;
+
+    for(int i=0;i<NUMB_OF_COLUMNS;++i){
+        CreatureID = FrontierCreaturesID[i];
+        if(CreatureID > 0){
+            CreatureReachedBottomID = xCheckSingleCreatureReachedBottom(creatures[CreatureID]);
+
+            if(CreatureReachedBottomID>0)
+                return CreatureReachedBottomID;
         }
     }
     return 0;
