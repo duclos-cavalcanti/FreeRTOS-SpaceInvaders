@@ -1074,7 +1074,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
     TickType_t WakeRate = 15;
    
     static unsigned char AnimationSpeedChangeThreshold = 10;
-    static unsigned char VerticalMovementThreshold = 6;
+    static unsigned char VerticalMovementThreshold = 10;
     static unsigned char NumberOfLaps = 0;
     static H_Movement_t LastHorizontalDirectionOfCreatures = RIGHT;
                             
@@ -1099,7 +1099,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
             }
 
             if(NumberOfLaps == VerticalMovementThreshold){
-                printf("Go Down.\n");
+                NumberOfLaps=0;
                 if(VerticalMovementThreshold > 1)
                     VerticalMovementThreshold--;
                 vMoveCreaturesVerticalDown(CreaturesBuffer.Creatures);
@@ -1127,7 +1127,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
                         pdMS_TO_TICKS(WakeRate));
     }
 }
-unsigned char xRetrieveCreaturesBulletAliveFlag()
+unsigned char xChangeCreaturesBulletAliveFlag()
 {
     if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
         if(CreaturesBuffer.BulletAliveFlag==1){
@@ -1236,7 +1236,7 @@ void vTaskPlayingGame(void *pvParameters)
                 ShipBulletOnScreenFlag = 1;
             }
         
-        CreaturesBulletOnScreenFlag = xRetrieveCreaturesBulletAliveFlag();
+        CreaturesBulletOnScreenFlag = xChangeCreaturesBulletAliveFlag();
 
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
