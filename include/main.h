@@ -45,6 +45,7 @@ typedef enum GameState_t{
 typedef enum SelectedMenuOption_t{
     SinglePlayer,
     MultiPlayer,
+    Cheats,
     Leave
 }SelectedMenuOption_t;
 

@@ -5,7 +5,7 @@
 #include "ship.h"
 #include "main.h"
 
-#define NUMB_OF_ROWS 4
+#define NUMB_OF_ROWS 5
 #define NUMB_OF_COLUMNS 8
 #define NUMB_OF_CREATURES NUMB_OF_ROWS*NUMB_OF_COLUMNS
 

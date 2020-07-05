@@ -49,7 +49,7 @@ static TaskHandle_t ShipShotControlTask = NULL;
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
-#define STATE_DEBOUNCE_DELAY 1000
+#define STATE_DEBOUNCE_DELAY 250
 #define STATE_QUEUE_LENGTH 1
 static QueueHandle_t StateQueue = NULL;
 
@@ -61,7 +61,15 @@ static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
 static image_handle_t CreatureEASY_0 = NULL;
 static image_handle_t CreatureEASY_1 = NULL;
+static image_handle_t CreatureHARD_0 = NULL;
+static image_handle_t CreatureHARD_1 = NULL;
 
+static image_handle_t CreaturesEasy_MenuScaled_0 = NULL;
+static image_handle_t CreaturesEasy_MenuScaled_1 = NULL;
+static image_handle_t CreaturesMedium_MenuScaled_0 = NULL;
+static image_handle_t CreaturesMedium_MenuScaled_1 = NULL;
+static image_handle_t CreaturesHard_MenuScaled_0 = NULL;
+static image_handle_t CreaturesHard_MenuScaled_1 = NULL;
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -87,6 +95,9 @@ static GameStateBuffer_t GameStateBuffer;
 
 typedef struct MainMenuInfoBuffer_t{
     SelectedMenuOption_t SelectedMenuOption; 
+    image_handle_t CreaturesEasyImages[2];
+    image_handle_t CreaturesMediumImages[2];
+    image_handle_t CreaturesHardImages[2];
     SemaphoreHandle_t lock;
 }MainMenuInfoBuffer_t;
 static MainMenuInfoBuffer_t MainMenuInfoBuffer = { 0 };
@@ -127,12 +138,18 @@ typedef struct CreaturesBuffer_t{
     unsigned short BulletAliveFlag;
     unsigned short NumbOfAliveCreatures;   
     H_Movement_t HorizontalDirection;
-    unsigned short SpeedChangeCount;
 
-    image_handle_t ImagesCatalog[4];
+    image_handle_t ImagesCatalog[6];
     SemaphoreHandle_t lock;
 }CreaturesBuffer_t;
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
+
+typedef struct LevelModifiersBuffer_t{
+    unsigned short SpeedChangeCount;
+    unsigned short NumberOfSpeedChanges;
+    SemaphoreHandle_t lock;
+}LevelModifiersBuffer_t;
+static LevelModifiersBuffer_t LevelModifiersBuffer = { 0 };
 
 typedef struct PausedGameInfoBuffer_t{
     PausedGameActions_t PausedGameActions;
@@ -170,10 +187,26 @@ void vPlayBulletSound()
 void vSetMainMenuBufferValues()
 {
     xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY);
+        MainMenuInfoBuffer.CreaturesEasyImages[0] = CreaturesEasy_MenuScaled_0;
+        MainMenuInfoBuffer.CreaturesEasyImages[1] = CreaturesEasy_MenuScaled_1;
+        MainMenuInfoBuffer.CreaturesMediumImages[0] = CreaturesMedium_MenuScaled_0;
+        MainMenuInfoBuffer.CreaturesMediumImages[1] = CreaturesMedium_MenuScaled_1;
+        MainMenuInfoBuffer.CreaturesHardImages[0] = CreaturesHard_MenuScaled_0;
+        MainMenuInfoBuffer.CreaturesHardImages[1] = CreaturesHard_MenuScaled_1;
 
         MainMenuInfoBuffer.SelectedMenuOption=SinglePlayer;
 
     xSemaphoreGive(MainMenuInfoBuffer.lock);
+}
+void vSetMainMenuLoadedImages()
+{
+    TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
+    CreaturesEasy_MenuScaled_0 = tumDrawLoadImage("../resources/creature_E_0.bmp");
+    CreaturesEasy_MenuScaled_1 = tumDrawLoadImage("../resources/creature_E_1.bmp");
+    CreaturesMedium_MenuScaled_0 = tumDrawLoadImage("../resources/creature_M_0.bmp");
+    CreaturesMedium_MenuScaled_1 = tumDrawLoadImage("../resources/creature_M_1.bmp");
+    CreaturesHard_MenuScaled_0 = tumDrawLoadImage("../resources/creature_H_0.bmp");
+    CreaturesHard_MenuScaled_1 = tumDrawLoadImage("../resources/creature_H_1.bmp");
 }
 void vSetPlayersInfoBufferValues()
 {
@@ -187,24 +220,6 @@ void vSetPlayersInfoBufferValues()
 
     xSemaphoreGive(PlayerInfoBuffer.lock);
 }
-void vPrepareNextLevelCreaturesValues(TickType_t* ShootingPeriod, unsigned char* VerticalMovementThreshold)
-{
-    xSemaphoreTake(CreaturesBuffer.lock,portMAX_DELAY);
-        xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
-            CreaturesBuffer.SpeedChangeCount-=1 * (PlayerInfoBuffer.Level - 1);
-            (*VerticalMovementThreshold)-=2 * (PlayerInfoBuffer.Level - 1);
-            (*ShootingPeriod)-=200 * (PlayerInfoBuffer.Level - 1);
-        xSemaphoreGive(PlayerInfoBuffer.lock);
-    xSemaphoreGive(CreaturesBuffer.lock);
-}
-void vPrepareGameValues(unsigned short Level, unsigned short Score)
-{ 
-    PlayerInfoBuffer.Score=Score;
-    PlayerInfoBuffer.Level=Level;
-    PlayerInfoBuffer.FreshGame=0;
-    PlayerInfoBuffer.LivesLeft=3;
-}
-
 void vSetOutsideGameActionsBufferValues()
 {
     xSemaphoreTake(OutsideGameActionsBuffer.lock,portMAX_DELAY);
@@ -226,6 +241,9 @@ void vSetShipsBufferValues()
 }
 void vSetCreaturesBufferValues()
 {
+    CreatureHARD_0 = tumDrawLoadImage("../resources/creature_H_0.bmp");
+    CreatureHARD_1 = tumDrawLoadImage("../resources/creature_H_1.bmp");
+
     CreatureMEDIUM_0=tumDrawLoadImage("../resources/creature_M_0.bmp");
     CreatureMEDIUM_1=tumDrawLoadImage("../resources/creature_M_1.bmp");
 
@@ -238,8 +256,9 @@ void vSetCreaturesBufferValues()
         CreaturesBuffer.ImagesCatalog[1]=CreatureEASY_1;
         CreaturesBuffer.ImagesCatalog[2]=CreatureMEDIUM_0;
         CreaturesBuffer.ImagesCatalog[3]=CreatureMEDIUM_1;
+        CreaturesBuffer.ImagesCatalog[4]=CreatureHARD_0;
+        CreaturesBuffer.ImagesCatalog[5]=CreatureHARD_1;
 
-        CreaturesBuffer.SpeedChangeCount = 10;
         CreaturesBuffer.HorizontalDirection = RIGHT;
         CreaturesBuffer.BulletAliveFlag=0;
         CreaturesBuffer.NumbOfAliveCreatures=NUMB_OF_CREATURES;
@@ -279,6 +298,25 @@ void vSetGameOverInfoBufferValues()
     xSemaphoreGive(GameOverInfoBuffer.lock);
 }
 
+void vSetLevelModifiersValues(TickType_t* ShootingPeriod, unsigned char* VerticalMovementThreshold)
+{
+    xSemaphoreTake(LevelModifiersBuffer.lock, portMAX_DELAY);
+        xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
+            LevelModifiersBuffer.NumberOfSpeedChanges = 0;
+            LevelModifiersBuffer.SpeedChangeCount = 10 - 2 * (PlayerInfoBuffer.Level - 1);
+            (*VerticalMovementThreshold) = 20 - 3 * (PlayerInfoBuffer.Level - 1);
+            (*ShootingPeriod) = 2000 - 250* (PlayerInfoBuffer.Level - 1);
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    xSemaphoreGive(LevelModifiersBuffer.lock);
+}
+
+void vPrepareGameValues(unsigned short Level, unsigned short Score)
+{ 
+    PlayerInfoBuffer.Score=Score;
+    PlayerInfoBuffer.Level=Level;
+    PlayerInfoBuffer.FreshGame=0;
+    PlayerInfoBuffer.LivesLeft=3;
+}
 
 void xGetButtonInput(void)
 {
@@ -523,9 +561,9 @@ void vUpdatePlayerScore(unsigned char CreatureID)
 
 void vDrawStaticTexts(void)
 {
-    char Score_1[100];   
-    char Score_2[100];   
-    char Hi_Score[100];   
+    char Score_1[20];   
+    char Score_2[20];   
+    char Hi_Score[20];   
     
     static int Score1_Width,Score2_Width,HiScoreWidth=0;
     
@@ -561,11 +599,66 @@ void vDrawStaticTexts(void)
     }
 }
 
+void vDrawPointsExplanation(unsigned char ImageAnimationIndex)
+{
+    char EasyPointsChar[20];   
+    static int EasyPointsCharWidth=0;
+
+    char MediumPointsChar[20];   
+    static int MediumPointsCharWidth=0;
+
+    char HardPointsChar[20];   
+    static int HardPointsCharWidth=0;
+
+    checkDraw(tumDrawLoadedImage(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex],
+                                 SCREEN_WIDTH*7/10-tumDrawGetLoadedImageWidth(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex])/2,
+                                 SCREEN_HEIGHT*6/10-tumDrawGetLoadedImageHeight(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex])/2),
+                                 __FUNCTION__);
+
+    sprintf(EasyPointsChar,"= 10 Points");
+    if(!tumGetTextSize((char *)EasyPointsChar,&EasyPointsCharWidth, NULL)){
+                    checkDraw(tumDrawText(EasyPointsChar,
+                                            SCREEN_WIDTH*4/5-EasyPointsCharWidth/2,
+                                            SCREEN_HEIGHT*6/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+
+    checkDraw(tumDrawLoadedImage(MainMenuInfoBuffer.CreaturesMediumImages[ImageAnimationIndex],
+                                 SCREEN_WIDTH*7/10-tumDrawGetLoadedImageWidth(MainMenuInfoBuffer.CreaturesMediumImages[ImageAnimationIndex])/2,
+                                 SCREEN_HEIGHT*7/10-tumDrawGetLoadedImageHeight(MainMenuInfoBuffer.CreaturesMediumImages[ImageAnimationIndex])/2),
+                                 __FUNCTION__);
+
+    sprintf(MediumPointsChar,"= 20 Points");
+    if(!tumGetTextSize((char *)MediumPointsChar,&MediumPointsCharWidth, NULL)){
+                    checkDraw(tumDrawText(MediumPointsChar,
+                                            SCREEN_WIDTH*4/5-MediumPointsCharWidth/2,
+                                            SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+
+    checkDraw(tumDrawLoadedImage(MainMenuInfoBuffer.CreaturesHardImages[ImageAnimationIndex],
+                                 SCREEN_WIDTH*7/10-tumDrawGetLoadedImageWidth(MainMenuInfoBuffer.CreaturesHardImages[ImageAnimationIndex])/2,
+                                 SCREEN_HEIGHT*8/10-tumDrawGetLoadedImageHeight(MainMenuInfoBuffer.CreaturesHardImages[ImageAnimationIndex])/2),
+                                 __FUNCTION__);
+
+    sprintf(HardPointsChar,"= 30 Points");
+    if(!tumGetTextSize((char *)HardPointsChar,&HardPointsCharWidth, NULL)){
+                    checkDraw(tumDrawText(HardPointsChar,
+                                            SCREEN_WIDTH*4/5-HardPointsCharWidth/2,
+                                            SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
+
+}
+
 void vDrawSpaceInvadersBanner()
 {
     checkDraw(tumDrawLoadedImage(TitleScreen,
                                  SCREEN_WIDTH*2/4-tumDrawGetLoadedImageWidth(TitleScreen)/2,
-                                 SCREEN_HEIGHT*4/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
+                                 SCREEN_HEIGHT*3/10-tumDrawGetLoadedImageHeight(TitleScreen)/2),
                                  __FUNCTION__);
 }
 
@@ -573,8 +666,12 @@ void vDrawMainMenuOptions(void)
 {
     static char SingleplayerChar[20];
     static char MultiplayerChar[20];
+
     static int SingleplayerCharWidth=0;
     static int MultiplayerCharWidth=0;   
+
+    static char CheatsChar[20];
+    static int CheatsCharWidth=0;
 
     static char LeaveChar[20];
     static int LeaveCharWidth=0;
@@ -584,7 +681,7 @@ void vDrawMainMenuOptions(void)
         sprintf(SingleplayerChar,"Singleplayer");
         if(!tumGetTextSize((char *)SingleplayerChar,&SingleplayerCharWidth, NULL)){
                         checkDraw(tumDrawText(SingleplayerChar,
-                                              SCREEN_WIDTH*2/4-SingleplayerCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
+                                              SCREEN_WIDTH*1/4-SingleplayerCharWidth/2,SCREEN_HEIGHT*6/10-DEFAULT_FONT_SIZE/2,
                                               xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, SinglePlayer)),
                                               __FUNCTION__);
         }
@@ -592,15 +689,23 @@ void vDrawMainMenuOptions(void)
         sprintf(MultiplayerChar,"Multiplayer");
         if(!tumGetTextSize((char *)MultiplayerChar,&MultiplayerCharWidth, NULL)){
                         checkDraw(tumDrawText(MultiplayerChar,
-                                              SCREEN_WIDTH*2/4-MultiplayerCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                              SCREEN_WIDTH*1/4-MultiplayerCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
                                               xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, MultiPlayer)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(CheatsChar,"Cheats");
+        if(!tumGetTextSize((char *)CheatsChar,&CheatsCharWidth, NULL)){
+                        checkDraw(tumDrawText(CheatsChar,
+                                              SCREEN_WIDTH*1/4-CheatsCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, Cheats)),
                                               __FUNCTION__);
         }
 
         sprintf(LeaveChar,"Leave");
         if(!tumGetTextSize((char *)LeaveChar,&LeaveCharWidth, NULL)){
                         checkDraw(tumDrawText(LeaveChar,
-                                              SCREEN_WIDTH*2/4-LeaveCharWidth/2,SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
+                                              SCREEN_WIDTH*1/4-LeaveCharWidth/2,SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
                                               xFetchSelectedColor(MainMenuInfoBuffer.SelectedMenuOption, Leave)),
                                               __FUNCTION__);
         }
@@ -648,15 +753,20 @@ void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
 }
 void vTaskMainMenu(void *pvParameters)
 {
-    TitleScreen=tumDrawLoadImage("../resources/TitleScreen.bmp");
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    TickType_t UpdatePeriod = 20;
-    
+    TickType_t xPrevAnimatedTime = 0;
+    const TickType_t UpdatePeriod = 20;
+    const TickType_t AnimationPeriod = 400;
+   
+    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char DOWN_DEBOUNCE_STATE = 0;
+
+    unsigned char ImageAnimationIndex=0;
+
+    vSetMainMenuLoadedImages() ;
     vSetPlayersInfoBufferValues();
     vSetMainMenuBufferValues();
 
-    unsigned char UP_DEBOUNCE_STATE = 0;
-    unsigned char DOWN_DEBOUNCE_STATE = 0;
 
     while (1) {
         xGetButtonInput(); 
@@ -665,12 +775,18 @@ void vTaskMainMenu(void *pvParameters)
         if(xCheckEnterPressed())
                 vHandleStateMachineActivation();
 
+        if(xTaskGetTickCount() - xPrevAnimatedTime > AnimationPeriod){
+            ImageAnimationIndex=!ImageAnimationIndex; 
+            xPrevAnimatedTime = xTaskGetTickCount();
+        }
+
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
 
                     tumDrawClear(Black); 
                     vDrawStaticTexts();
+                    vDrawPointsExplanation(ImageAnimationIndex);
                     vDrawSpaceInvadersBanner();
                     vDrawMainMenuOptions();
                     vDrawFPS();
@@ -921,9 +1037,31 @@ void vTaskShipShotControl(void *pvParameters)
     }
 }
 
+void vSpeedCreaturesControl(unsigned char* SpeedChangeCount)
+{
+    (*SpeedChangeCount)++;
+    if(xSemaphoreTake(LevelModifiersBuffer.lock, 0)==pdTRUE){
+        if((*SpeedChangeCount) % LevelModifiersBuffer.SpeedChangeCount==0){ 
+            LevelModifiersBuffer.NumberOfSpeedChanges++;
+            if(LevelModifiersBuffer.NumberOfSpeedChanges<3)
+                vUpdateCreaturesSpeed(CreaturesBuffer.Creatures);
+        }
+        xSemaphoreGive(LevelModifiersBuffer.lock);
+    }
+}
+
+void vScoreControl(unsigned char CreatureCollisionID)
+{
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
+}
+
 void vTaskCreaturesShotControl(void *pvParameters)
 {
     unsigned char SpeedChangeCount=0;
+
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
@@ -934,14 +1072,8 @@ void vTaskCreaturesShotControl(void *pvParameters)
                                             CreatureCollisionID);
 
                 vPlayDeadCreatureSound();
-                SpeedChangeCount++;
-                if(SpeedChangeCount%CreaturesBuffer.SpeedChangeCount==0)
-                    vUpdateCreaturesSpeed(CreaturesBuffer.Creatures);
-
-                if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                    vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
-                    xSemaphoreGive(PlayerInfoBuffer.lock);
-                }
+                vScoreControl(CreatureCollisionID);
+                vSpeedCreaturesControl(&SpeedChangeCount);
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
        } 
@@ -1102,6 +1234,7 @@ void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures
 void vVerticalCreatureControl(unsigned char* NumberOfLaps, unsigned char* VerticalMovementThreshold)
 {
     if((*NumberOfLaps) == (*VerticalMovementThreshold)){
+        printf("Went Down at: %d.\n", (*NumberOfLaps));
         (*NumberOfLaps)=0;
         if((*VerticalMovementThreshold) > 2)
             (*VerticalMovementThreshold)--;
@@ -1132,11 +1265,10 @@ void vAnimationSpeedCreaturesControl(unsigned char* AnimationSpeedChangeThreshol
     }
 }
 
-void vCreaturesInitiateShoot(TickType_t* xPrevShotTime)
+void vCreaturesInitiateShoot(TickType_t* xPrevShotTime, TickType_t* ShootingPeriod)
 {
-    TickType_t ShootingPeriod = 2000;
 
-    if(xTaskGetTickCount() - (*xPrevShotTime) >= ShootingPeriod &&
+    if(xTaskGetTickCount() - (*xPrevShotTime) >= (*ShootingPeriod) &&
         CreaturesBuffer.BulletAliveFlag==0 &&
         CreaturesBuffer.NumbOfAliveCreatures>0){
 
@@ -1152,8 +1284,6 @@ void vCreaturesInitiateShoot(TickType_t* xPrevShotTime)
 }
 void vTaskCreaturesActionControl(void *pvParameters)
 {
-    vSetCreaturesBufferValues();
-
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t xPrevAnimatedTime = 0;
     TickType_t xPrevShotTime = 0;
@@ -1162,9 +1292,18 @@ void vTaskCreaturesActionControl(void *pvParameters)
     TickType_t WakeRate = 15;
    
     static unsigned char AnimationSpeedChangeThreshold = NUMB_OF_CREATURES - 5;
-    static unsigned char VerticalMovementThreshold = 5;
+    static unsigned char VerticalMovementThreshold = 0;
     static unsigned char NumberOfLaps = 0;
+    static TickType_t ShootingPeriod = 0;
     static H_Movement_t LastHorizontalDirectionOfCreatures = RIGHT;
+
+    vSetCreaturesBufferValues();
+    vSetLevelModifiersValues(&ShootingPeriod, &VerticalMovementThreshold);
+
+    printf("Level: %d\n", PlayerInfoBuffer.Level);
+    printf("SpeedChangeCount: %d\n", LevelModifiersBuffer.SpeedChangeCount);
+    printf("VerticalMovementThreshold: %d\n", VerticalMovementThreshold);
+    printf("Shooting Period in MS: %d\n", ShootingPeriod);
 
     while(1){
         
@@ -1183,7 +1322,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
             vVerticalCreatureControl(&NumberOfLaps,
                                      &VerticalMovementThreshold);
 
-            vCreaturesInitiateShoot(&xPrevShotTime);
+            vCreaturesInitiateShoot(&xPrevShotTime, &ShootingPeriod);
 
             vTriggerCreaturesBunkerDestruction();
 
@@ -1899,6 +2038,13 @@ int main(int argc, char *argv[])
         PRINT_ERROR("Failed to create BunkerCreaturesCrashedTask.");
         goto err_bunkerscreaturescrashed;
     }
+    
+    LevelModifiersBuffer.lock = xSemaphoreCreateMutex();
+    if(!LevelModifiersBuffer.lock){
+        PRINT_ERROR("Failed to create Level modifier lock");
+        goto err_levelmodifierlock;
+    }
+
 
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
@@ -1917,7 +2063,8 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
-
+err_levelmodifierlock:
+    vTaskDelete(BunkerCreaturesCrashedTask);
 err_bunkerscreaturescrashed:
     vTaskDelete(NextLevelTask);
 err_nextleveltask:

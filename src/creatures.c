@@ -36,6 +36,7 @@ int* SetTypes()
     CreaturesTypes[1]=EASY;
     CreaturesTypes[2]=MEDIUM;
     CreaturesTypes[3]=MEDIUM;
+    CreaturesTypes[4]=HARD;
 
     return CreaturesTypes;
 }
@@ -105,14 +106,11 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
         FrontierCreaturesID[CreatureHitID - 8] += 8;
     else if(CreatureHitID < NUMB_OF_COLUMNS*3)
         FrontierCreaturesID[CreatureHitID - 16] += 8;
-    else 
-        FrontierCreaturesID[CreatureHitID - 24] = -1;
+    else if(CreatureHitID < NUMB_OF_COLUMNS*4)
+        FrontierCreaturesID[CreatureHitID - 24] += 8;
+    else
+        FrontierCreaturesID[CreatureHitID - 32] = -1;
 
-    printf("HIT: %d ---> Frontier: ", CreatureHitID);
-    for(int i=0;i<NUMB_OF_COLUMNS;++i)
-        printf(" %d | ", FrontierCreaturesID[i]);
-
-    printf("\n");
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
@@ -250,12 +248,14 @@ H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
             if(creatures[creature_count].Alive==1 ||
                creatures[creature_count+8].Alive==1 ||
                creatures[creature_count+16].Alive==1 ||
-               creatures[creature_count+24].Alive==1){
+               creatures[creature_count+24].Alive==1  ||
+               creatures[creature_count+32].Alive==1){
 
                 if(xCheckRightEdgeDistance(creatures[creature_count]) ||
                    xCheckRightEdgeDistance(creatures[creature_count+8]) ||
                    xCheckRightEdgeDistance(creatures[creature_count+16]) ||
-                   xCheckRightEdgeDistance(creatures[creature_count+24]))
+                   xCheckRightEdgeDistance(creatures[creature_count+24]) ||
+                   xCheckRightEdgeDistance(creatures[creature_count+32]))
 
                     return LEFT;
                 else 
@@ -271,12 +271,14 @@ H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
             if(creatures[creature_count].Alive==1 ||
                creatures[creature_count+8].Alive==1 ||
                creatures[creature_count+16].Alive==1 ||
-               creatures[creature_count+24].Alive==1){
+               creatures[creature_count+24].Alive==1 ||
+               creatures[creature_count+32].Alive==1){
 
                 if(xCheckLeftEdgeDistance(creatures[creature_count]) ||
                    xCheckLeftEdgeDistance(creatures[creature_count+8]) ||
                    xCheckLeftEdgeDistance(creatures[creature_count+16]) ||
-                   xCheckLeftEdgeDistance(creatures[creature_count+24]))
+                   xCheckLeftEdgeDistance(creatures[creature_count+24]) ||
+                   xCheckLeftEdgeDistance(creatures[creature_count+32]))
 
                     return RIGHT;
                 else 

@@ -15,6 +15,7 @@ void vDownMenuSelection(SelectedMenuOption_t* CurrentSelect)
     switch(*CurrentSelect){
         case SinglePlayer:
         case MultiPlayer:
+        case Cheats:
             (*CurrentSelect)++;
             break;
         case Leave:
@@ -27,6 +28,7 @@ void vUpMenuSelection(SelectedMenuOption_t* CurrentSelect)
     switch(*CurrentSelect){
         case Leave:        
         case MultiPlayer:
+        case Cheats:
             (*CurrentSelect)--;
             break;
         case SinglePlayer:
@@ -54,6 +56,10 @@ void vAssignCreaturesImages(creature_t* Creatures, image_handle_t* ImageCatalog)
         else if(Creatures[i].CreatureType==MEDIUM){
             Creatures[i].Image_0 = ImageCatalog[2];
             Creatures[i].Image_1 = ImageCatalog[3];
+        }
+        else if(Creatures[i].CreatureType==HARD){
+            Creatures[i].Image_0 = ImageCatalog[4];
+            Creatures[i].Image_1 = ImageCatalog[5];
         }
     }
 }
