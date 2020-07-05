@@ -24,6 +24,7 @@
 #include "main.h"
 #include "ship.h"
 #include "bunkers.h"
+#include "saucer.h"
 #include "creatures.h"
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
@@ -64,6 +65,7 @@ static image_handle_t CreatureEASY_1 = NULL;
 static image_handle_t CreatureHARD_0 = NULL;
 static image_handle_t CreatureHARD_1 = NULL;
 
+static image_handle_t SaucerBoss = NULL;
 static image_handle_t CreaturesEasy_MenuScaled_0 = NULL;
 static image_handle_t CreaturesEasy_MenuScaled_1 = NULL;
 static image_handle_t CreaturesMedium_MenuScaled_0 = NULL;
@@ -115,6 +117,12 @@ typedef struct ShipBuffer_t{
 }ShipBuffer_t;
 static ShipBuffer_t ShipBuffer = { 0 };
 
+typedef struct SaucerBuffer_t{
+    saucer_t* saucer;
+    SemaphoreHandle_t lock;
+}SaucerBuffer_t;
+static SaucerBuffer_t SaucerBuffer = { 0 };
+
 typedef struct PlayerBuffer_t{
     unsigned short LivesLeft;
     unsigned short Level;
@@ -163,6 +171,80 @@ typedef struct GameOverInfoBuffer_t{
 }GameOverInfoBuffer_t;
 static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
 
+void xGetButtonInput(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
+        xSemaphoreGive(buttons.lock);
+    }
+}
+
+void checkDraw(unsigned char status, const char *msg)
+{
+    if (status) {
+        if (msg)
+            fprintf(stderr, "[ERROR] %s, %s\n", msg,
+                    tumGetErrorMessage());
+        else {
+            fprintf(stderr, "[ERROR] %s\n", tumGetErrorMessage());
+        }
+    }
+}
+
+void vDrawFPS(void)
+{
+    static unsigned int periods[FPS_AVERAGE_COUNT] = { 0 };
+    static unsigned int periods_total = 0;
+    static unsigned int index = 0;
+    static unsigned int average_count = 0;
+    static TickType_t xLastWakeTime = 0, prevWakeTime = 0;
+    static char str[10] = { 0 };
+    static int text_width;
+    int fps = 0;
+    font_handle_t cur_font = tumFontGetCurFontHandle();
+
+    xLastWakeTime = xTaskGetTickCount();
+
+    if (prevWakeTime != xLastWakeTime) {
+        periods[index] =
+            configTICK_RATE_HZ / (xLastWakeTime - prevWakeTime);
+        prevWakeTime = xLastWakeTime;
+    }
+    else {
+        periods[index] = 0;
+    }
+
+    periods_total += periods[index];
+
+    if (index == (FPS_AVERAGE_COUNT - 1)) {
+        index = 0;
+    }
+    else {
+        index++;
+    }
+
+    if (average_count < FPS_AVERAGE_COUNT) {
+        average_count++;
+    }
+    else {
+        periods_total -= periods[index];
+    }
+
+    fps = periods_total / average_count;
+
+    tumFontSelectFontFromName(FPS_FONT);
+
+    sprintf(str, "FPS: %2d", fps);
+
+    if (!tumGetTextSize((char *)str, &text_width, NULL))
+        checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
+                              SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 1.5,
+                              White),
+                  __FUNCTION__);
+
+    tumFontSelectFontFromHandle(cur_font);
+    tumFontPutFontHandle(cur_font);
+}
 void vPlayShipShotSound()
 {
     tumSoundPlaySample(c3);
@@ -207,6 +289,7 @@ void vSetMainMenuLoadedImages()
     CreaturesMedium_MenuScaled_1 = tumDrawLoadImage("../resources/creature_M_1.bmp");
     CreaturesHard_MenuScaled_0 = tumDrawLoadImage("../resources/creature_H_0.bmp");
     CreaturesHard_MenuScaled_1 = tumDrawLoadImage("../resources/creature_H_1.bmp");
+    SaucerBoss = tumDrawLoadImage("../resources/saucer.bmp");
 }
 void vSetPlayersInfoBufferValues()
 {
@@ -238,6 +321,15 @@ void vSetShipsBufferValues()
 
     xSemaphoreGive(ShipBuffer.lock);
 
+}
+void vSetSaucerBufferValues()
+{
+    xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY);
+
+        SaucerBuffer.saucer = CreateSinglePlayerSaucer();
+        SaucerBuffer.saucer->Image = SaucerBoss;
+
+    xSemaphoreGive(SaucerBuffer.lock);
 }
 void vSetCreaturesBufferValues()
 {
@@ -318,238 +410,6 @@ void vPrepareGameValues(unsigned short Level, unsigned short Score)
     PlayerInfoBuffer.LivesLeft=3;
 }
 
-void xGetButtonInput(void)
-{
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
-        xSemaphoreGive(buttons.lock);
-    }
-}
-
-void checkDraw(unsigned char status, const char *msg)
-{
-    if (status) {
-        if (msg)
-            fprintf(stderr, "[ERROR] %s, %s\n", msg,
-                    tumGetErrorMessage());
-        else {
-            fprintf(stderr, "[ERROR] %s\n", tumGetErrorMessage());
-        }
-    }
-}
-
-void vDrawFPS(void)
-{
-    static unsigned int periods[FPS_AVERAGE_COUNT] = { 0 };
-    static unsigned int periods_total = 0;
-    static unsigned int index = 0;
-    static unsigned int average_count = 0;
-    static TickType_t xLastWakeTime = 0, prevWakeTime = 0;
-    static char str[10] = { 0 };
-    static int text_width;
-    int fps = 0;
-    font_handle_t cur_font = tumFontGetCurFontHandle();
-
-    xLastWakeTime = xTaskGetTickCount();
-
-    if (prevWakeTime != xLastWakeTime) {
-        periods[index] =
-            configTICK_RATE_HZ / (xLastWakeTime - prevWakeTime);
-        prevWakeTime = xLastWakeTime;
-    }
-    else {
-        periods[index] = 0;
-    }
-
-    periods_total += periods[index];
-
-    if (index == (FPS_AVERAGE_COUNT - 1)) {
-        index = 0;
-    }
-    else {
-        index++;
-    }
-
-    if (average_count < FPS_AVERAGE_COUNT) {
-        average_count++;
-    }
-    else {
-        periods_total -= periods[index];
-    }
-
-    fps = periods_total / average_count;
-
-    tumFontSelectFontFromName(FPS_FONT);
-
-    sprintf(str, "FPS: %2d", fps);
-
-    if (!tumGetTextSize((char *)str, &text_width, NULL))
-        checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
-                              SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 1.5,
-                              White),
-                  __FUNCTION__);
-
-    tumFontSelectFontFromHandle(cur_font);
-    tumFontPutFontHandle(cur_font);
-}
-void vSwapBuffers(void *pvParameters)
-{
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
-    const TickType_t frameratePeriod = 20;
-    
-    tumDrawBindThread(); // Setup Rendering handle with correct GL context
-
-    while (1) {
-        if (xSemaphoreTake(ScreenLock, portMAX_DELAY) == pdTRUE) {
-            tumDrawUpdateScreen();
-            tumEventFetchEvents(FETCH_EVENT_NONBLOCK);
-            xSemaphoreGive(ScreenLock);
-            xSemaphoreGive(DrawSignal);
-            vTaskDelayUntil(&xLastWakeTime,
-                            pdMS_TO_TICKS(frameratePeriod));
-        }
-    }
-}
-void vHandleNextLevelStateSM()
-{
-    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        vPrepareGameValues(PlayerInfoBuffer.Level+1, PlayerInfoBuffer.Score);
-        xSemaphoreGive(PlayerInfoBuffer.lock);
-        if(StateQueue)
-            xQueueSend(StateQueue,&PlayingStateSignal, 0);
-    }
-}
-void vHandleGameOverStateSM()
-{
-    if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        switch(GameOverInfoBuffer.SelectedGameOverOption){
-            case PlayAgain:
-                xSemaphoreGive(GameOverInfoBuffer.lock);
-                if(StateQueue)
-                    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                        vPrepareGameValues(1,0);
-                        xSemaphoreGive(PlayerInfoBuffer.lock);
-                    }
-                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
-
-            case Quit:
-            default:
-                xSemaphoreGive(GameOverInfoBuffer.lock);
-                exit(EXIT_SUCCESS);
-               break; 
-        }
-        xSemaphoreGive(GameOverInfoBuffer.lock);
-    }
-}
-void vHandlePausedGameStateSM()
-{
-    if(xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        switch(PausedGameInfoBuffer.PausedGameActions){
-            case ResumeGame:
-                xSemaphoreGive(PausedGameInfoBuffer.lock);
-                if(StateQueue)
-                    xQueueSend(StateQueue,&PlayingStateSignal, 0);
-
-            case RemainPaused:
-            default:
-                xSemaphoreGive(PausedGameInfoBuffer.lock);
-               break; 
-        }
-        xSemaphoreGive(PausedGameInfoBuffer.lock);
-    }
-}
-void vHandlePlayingGameStateSM()
-{
-    if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
-        switch(OutsideGameActionsBuffer.PlayerOutsideGameActions){
-            
-            case PauseGameAction:
-                xSemaphoreGive(OutsideGameActionsBuffer.lock);
-                if(StateQueue)
-                    xQueueSend(StateQueue,&PausedGameStateSignal, 0);
-                break;
-            case LostGameAction:
-                xSemaphoreGive(OutsideGameActionsBuffer.lock);
-                if(StateQueue)
-                    xQueueSend(StateQueue,&GameOverStateSignal, 0);
-                break;
-            case WonGameAction:
-                xSemaphoreGive(OutsideGameActionsBuffer.lock);
-                if(StateQueue)
-                    xQueueSend(StateQueue,&NextLevelStateSignal, 0);
-            case ResetGameAction:
-                if (StateQueue)
-                    xQueueSend(StateQueue,&ResetGameStateSignal, 0);
-            case NoAction:
-            default:
-               break;
-        }
-        xSemaphoreGive(OutsideGameActionsBuffer.lock);
-    }
-}
-void vHandleMainMenuStateSM()
-{
-    if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-
-        switch(MainMenuInfoBuffer.SelectedMenuOption){
-
-            case SinglePlayer:
-                xSemaphoreGive(MainMenuInfoBuffer.lock);
-                if(StateQueue)
-                    xQueueSend(StateQueue,&PlayingStateSignal, 0);
-                break; 
-
-            case Leave:
-                xSemaphoreGive(MainMenuInfoBuffer.lock);
-                exit(EXIT_SUCCESS);
-                break;
-
-            case MultiPlayer:
-            default:
-                xSemaphoreGive(MainMenuInfoBuffer.lock);
-                break;
-        }
-
-        xSemaphoreGive(MainMenuInfoBuffer.lock);
-    }
-}
-void vHandleStateMachineActivation()
-{
-
-    if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
-        switch(GameStateBuffer.GameState){
-            case ResetGameState:
-            case MainMenuState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandleMainMenuStateSM();
-                break; 
-
-            case PlayingState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandlePlayingGameStateSM();
-                break;
-
-            case PausedState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandlePausedGameStateSM();
-                break;
-
-            case GameOverState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandleGameOverStateSM();
-                break;
-            case NextLevelState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandleNextLevelStateSM();
-            default:
-                break; 
-        
-        }
-        xSemaphoreGive(GameStateBuffer.lock);
-    }
-}
-
 void vUpdatePlayerScore(unsigned char CreatureID)
 {
     static unsigned char AddOn=0;
@@ -610,6 +470,9 @@ void vDrawPointsExplanation(unsigned char ImageAnimationIndex)
     char HardPointsChar[20];   
     static int HardPointsCharWidth=0;
 
+    char MysteriousShipChar[20];
+    static int MysteriousShipCharWidth=0;
+
     checkDraw(tumDrawLoadedImage(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex],
                                  SCREEN_WIDTH*7/10-tumDrawGetLoadedImageWidth(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex])/2,
                                  SCREEN_HEIGHT*6/10-tumDrawGetLoadedImageHeight(MainMenuInfoBuffer.CreaturesEasyImages[ImageAnimationIndex])/2),
@@ -652,6 +515,19 @@ void vDrawPointsExplanation(unsigned char ImageAnimationIndex)
                                             __FUNCTION__);
                 }
 
+    checkDraw(tumDrawLoadedImage(SaucerBoss,
+                                 SCREEN_WIDTH*7/10-tumDrawGetLoadedImageWidth(SaucerBoss)/2,
+                                 SCREEN_HEIGHT*9/10-tumDrawGetLoadedImageHeight(SaucerBoss)/2),
+                                 __FUNCTION__);
+
+    sprintf(MysteriousShipChar,"= ?? Points");
+    if(!tumGetTextSize((char *)MysteriousShipChar,&MysteriousShipCharWidth, NULL)){
+                    checkDraw(tumDrawText(MysteriousShipChar,
+                                            SCREEN_WIDTH*4/5-MysteriousShipCharWidth/2,
+                                            SCREEN_HEIGHT*9/10-DEFAULT_FONT_SIZE/2,
+                                            White),
+                                            __FUNCTION__);
+                }
 }
 
 void vDrawSpaceInvadersBanner()
@@ -880,6 +756,18 @@ void vDrawSingleCreature(unsigned char creatureID)
                                      CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
                                      __FUNCTION__); 
 }
+void vDrawSaucer()
+{
+    if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
+         
+        checkDraw(tumDrawLoadedImage(SaucerBoss,
+                                     SaucerBuffer.saucer->x_pos-SAUCER_WIDTH/2,
+                                     SaucerBuffer.saucer->y_pos-SAUCER_WIDTH/2),
+                                     __FUNCTION__);
+    
+        xSemaphoreGive(SaucerBuffer.lock);
+    }
+}
 void vDrawCreatures()
 {
     unsigned char CreatureCountID=0;
@@ -959,18 +847,17 @@ void vDrawShip()
         xSemaphoreGive(ShipBuffer.lock);
     }
 }
-unsigned char xCheckShipShoot()
+unsigned char xCheckShipShoot(unsigned char* SPACE_DEBOUNCE_STATE)
 {
-    xGetButtonInput();
     if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
         if (buttons.buttons[KEYCODE(SPACE)]) {
-            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
-                xSemaphoreGive(ShipBuffer.lock);
+            if(buttons.buttons[KEYCODE(SPACE)]!=(*SPACE_DEBOUNCE_STATE)){
+                (*SPACE_DEBOUNCE_STATE) = buttons.buttons[KEYCODE(SPACE)];
                 xSemaphoreGive(buttons.lock);
                 return 1;
             }
-            xSemaphoreGive(buttons.lock);
         }
+        (*SPACE_DEBOUNCE_STATE) = buttons.buttons[KEYCODE(SPACE)];
         xSemaphoreGive(buttons.lock);
     }
     return 0;    
@@ -1471,9 +1358,14 @@ void vTaskPlayingGame(void *pvParameters)
     vSetOutsideGameActionsBufferValues();
     vSetShipsBufferValues();
     vSetBunkersBufferValues();
+    vSetSaucerBufferValues();
+
+    static unsigned char SPACE_DEBOUNCE_STATE = 0;
 
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
+
+    static unsigned char SaucerAppearsFlag = 1;
 
     while(1){
         xGetButtonInput();
@@ -1482,7 +1374,7 @@ void vTaskPlayingGame(void *pvParameters)
             vHandleStateMachineActivation();
         
         xCheckShipMoved();
-        if(xCheckShipShoot() && ShipBulletOnScreenFlag == 0)
+        if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
             vSetShipBulletFlags();
 
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
@@ -1496,6 +1388,9 @@ void vTaskPlayingGame(void *pvParameters)
                     vDrawStaticTexts();
                     vDrawShip();                    
                     vDrawCreatures();
+
+                    if(SaucerAppearsFlag)
+                        vDrawSaucer();
 
                     if(CreaturesBulletOnScreenFlag)
                         vTriggerCreaturesBulletControl();
@@ -1748,6 +1643,165 @@ void vTaskNextLevel(void *pvParameters)
     }
 
 }
+
+void vSwapBuffers(void *pvParameters)
+{
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    const TickType_t frameratePeriod = 20;
+    
+    tumDrawBindThread(); // Setup Rendering handle with correct GL context
+
+    while (1) {
+        if (xSemaphoreTake(ScreenLock, portMAX_DELAY) == pdTRUE) {
+            tumDrawUpdateScreen();
+            tumEventFetchEvents(FETCH_EVENT_NONBLOCK);
+            xSemaphoreGive(ScreenLock);
+            xSemaphoreGive(DrawSignal);
+            vTaskDelayUntil(&xLastWakeTime,
+                            pdMS_TO_TICKS(frameratePeriod));
+        }
+    }
+}
+void vHandleNextLevelStateSM()
+{
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        vPrepareGameValues(PlayerInfoBuffer.Level+1, PlayerInfoBuffer.Score);
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+        if(StateQueue)
+            xQueueSend(StateQueue,&PlayingStateSignal, 0);
+    }
+}
+void vHandleGameOverStateSM()
+{
+    if(xSemaphoreTake(GameOverInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        switch(GameOverInfoBuffer.SelectedGameOverOption){
+            case PlayAgain:
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+                if(StateQueue)
+                    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                        vPrepareGameValues(1,0);
+                        xSemaphoreGive(PlayerInfoBuffer.lock);
+                    }
+                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
+
+            case Quit:
+            default:
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+                exit(EXIT_SUCCESS);
+               break; 
+        }
+        xSemaphoreGive(GameOverInfoBuffer.lock);
+    }
+}
+void vHandlePausedGameStateSM()
+{
+    if(xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        switch(PausedGameInfoBuffer.PausedGameActions){
+            case ResumeGame:
+                xSemaphoreGive(PausedGameInfoBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&PlayingStateSignal, 0);
+
+            case RemainPaused:
+            default:
+                xSemaphoreGive(PausedGameInfoBuffer.lock);
+               break; 
+        }
+        xSemaphoreGive(PausedGameInfoBuffer.lock);
+    }
+}
+void vHandlePlayingGameStateSM()
+{
+    if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+        switch(OutsideGameActionsBuffer.PlayerOutsideGameActions){
+            
+            case PauseGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&PausedGameStateSignal, 0);
+                break;
+            case LostGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&GameOverStateSignal, 0);
+                break;
+            case WonGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&NextLevelStateSignal, 0);
+            case ResetGameAction:
+                if (StateQueue)
+                    xQueueSend(StateQueue,&ResetGameStateSignal, 0);
+            case NoAction:
+            default:
+               break;
+        }
+        xSemaphoreGive(OutsideGameActionsBuffer.lock);
+    }
+}
+void vHandleMainMenuStateSM()
+{
+    if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+
+        switch(MainMenuInfoBuffer.SelectedMenuOption){
+
+            case SinglePlayer:
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&PlayingStateSignal, 0);
+                break; 
+
+            case Leave:
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                exit(EXIT_SUCCESS);
+                break;
+
+            case MultiPlayer:
+            default:
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                break;
+        }
+
+        xSemaphoreGive(MainMenuInfoBuffer.lock);
+    }
+}
+void vHandleStateMachineActivation()
+{
+
+    if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
+        switch(GameStateBuffer.GameState){
+            case ResetGameState:
+            case MainMenuState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleMainMenuStateSM();
+                break; 
+
+            case PlayingState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandlePlayingGameStateSM();
+                break;
+
+            case PausedState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandlePausedGameStateSM();
+                break;
+
+            case GameOverState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleGameOverStateSM();
+                break;
+            case NextLevelState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleNextLevelStateSM();
+            default:
+                break; 
+        
+        }
+        xSemaphoreGive(GameStateBuffer.lock);
+    }
+}
+
 void vRecreateGame()
 {
     if(MainPlayingGameTask){
@@ -2045,6 +2099,13 @@ int main(int argc, char *argv[])
         goto err_levelmodifierlock;
     }
 
+    SaucerBuffer.lock = xSemaphoreCreateMutex();
+    if(!SaucerBuffer.lock){
+        PRINT_ERROR("Failed to create Saucer lock");
+        goto err_saucerlock;
+    }
+
+
 
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
@@ -2063,6 +2124,8 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+err_saucerlock:
+    vSemaphoreDelete(LevelModifiersBuffer.lock);
 err_levelmodifierlock:
     vTaskDelete(BunkerCreaturesCrashedTask);
 err_bunkerscreaturescrashed:

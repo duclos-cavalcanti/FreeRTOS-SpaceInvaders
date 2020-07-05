@@ -67,4 +67,5 @@ typedef enum SelectedGameOverOption_t{
     Quit
 }SelectedGameOverOption_t;
 
+void vHandleStateMachineActivation();
 #endif 
