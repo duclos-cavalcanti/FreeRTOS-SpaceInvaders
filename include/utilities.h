@@ -16,7 +16,7 @@ void vDownGameOverSelection(SelectedGameOverOption_t* CurrentSelect);
 void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect);
 
 unsigned int xFetchSelectedColor(unsigned char CurrentSelect, unsigned char ConsideredOption);
-unsigned int xFetchAnimationColor(unsigned char CurrentSelect, unsigned char ConsideredOption);
+unsigned int xFetchAnimationColor(unsigned char AnimationCondition);
 void vAssignCreaturesImages(creature_t* Creatures, image_handle_t* ImageCatalog);
 
 #endif

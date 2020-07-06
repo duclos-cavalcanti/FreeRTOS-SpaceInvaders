@@ -94,7 +94,6 @@ signed short* vAssignFrontierCreatures(creature_t* creatures)
    for(int i=0;i<8;i++)
        FrontierCreaturesID[i]=i;
 
-
    return FrontierCreaturesID;
 }
 
@@ -449,4 +448,10 @@ unsigned char xFetchCreatureValue(unsigned char creatureclassID)
         default:
             return 0;
     }
+}
+
+void vRetrieveDeadCreatureXY(signed short* x, signed short* y, creature_t creature)
+{
+    (*x)=creature.x_pos;
+    (*y)=creature.y_pos;
 }

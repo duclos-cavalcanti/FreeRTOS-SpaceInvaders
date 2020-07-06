@@ -86,9 +86,9 @@ void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect)
     }
 }
 
-unsigned int xFetchAnimationColor(unsigned char CurrentSelect, unsigned char ConsideredOption)
+unsigned int xFetchAnimationColor(unsigned char AnimationCondition)
 {
-    if(ConsideredOption == CurrentSelect)
+    if(AnimationCondition == LivesLost)
         return Red;
     else 
         return White;

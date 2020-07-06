@@ -10,6 +10,9 @@
 #define BOTTOM_WALLTHICKNESS 3
 #define BOTTOM_WALLPOSITION SCREEN_HEIGHT*95/100
 
+#define CREATURE_SHOT_ANIMATION_W 25
+#define CREATURE_SHOT_ANIMATION_H 24
+
 
 void checkDraw(unsigned char status, const char *msg);
 

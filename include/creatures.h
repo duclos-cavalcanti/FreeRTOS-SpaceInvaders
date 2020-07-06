@@ -149,5 +149,9 @@ void vKillCreature(creature_t* creature, unsigned short* NumbOfAliveCreatures);
 
 void vAlternateAnimation(creature_t* creature);
 unsigned char xFetchCreatureValue(unsigned char creatureclassID);
+
+
+void vRetrieveDeadCreatureXY(signed short* x, signed short* y, creature_t creatures);
+
 #endif 
 
