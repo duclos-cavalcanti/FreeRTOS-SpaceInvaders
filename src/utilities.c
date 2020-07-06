@@ -85,3 +85,11 @@ void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect)
            (*CurrentSelect) = Quit;
     }
 }
+
+unsigned int xFetchAnimationColor(unsigned char CurrentSelect, unsigned char ConsideredOption)
+{
+    if(ConsideredOption == CurrentSelect)
+        return Red;
+    else 
+        return White;
+}

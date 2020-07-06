@@ -179,6 +179,14 @@ typedef struct GameOverInfoBuffer_t{
 }GameOverInfoBuffer_t;
 static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
 
+typedef struct AnimationsBuffer_t{
+    LivesAnimation_t LivesCondition;
+    TickType_t LivesColorRedTimer;
+    unsigned char LivesTimerSet;
+    SemaphoreHandle_t lock;
+}AnimationsBuffer_t;
+AnimationsBuffer_t AnimationsBuffer = { 0 };
+
 void xGetButtonInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -412,6 +420,15 @@ void vSetLevelModifiersValues()
             LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     xSemaphoreGive(LevelModifiersBuffer.lock);
+}
+
+void vSetAnimationsBufferValues()
+{
+    xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY);
+        AnimationsBuffer.LivesCondition=LivesIntact;
+        AnimationsBuffer.LivesColorRedTimer=0;
+        AnimationsBuffer.LivesTimerSet=0;
+    xSemaphoreGive(AnimationsBuffer.lock);
 }
 
 void vPrepareGameValues(unsigned short Level, unsigned short Score)
@@ -732,11 +749,14 @@ void vDrawLevel()
         sprintf(str,"Level [ %d ]", PlayerInfoBuffer.Level);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
-    if(!tumGetTextSize((char*)str, &strWidth, NULL))
-        checkDraw(tumDrawText(str,120- strWidth/2,
-                              SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
-                              White),
-                              __FUNCTION__);
+    if(xSemaphoreTake(AnimationsBuffer.lock, 0)==pdTRUE){
+        if(!tumGetTextSize((char*)str, &strWidth, NULL))
+            checkDraw(tumDrawText(str,120- strWidth/2,
+                                  SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
+                                  White), 
+                                  __FUNCTION__);
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
 }
 void vDrawLives()
 {   
@@ -751,7 +771,7 @@ void vDrawLives()
     if(!tumGetTextSize((char*)str, &strWidth, NULL))
         checkDraw(tumDrawText(str, 35 - strWidth/2, 
                               SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
-                              White),
+                              xFetchAnimationColor(AnimationsBuffer.LivesCondition,LivesLost)),
                               __FUNCTION__);
 }
 
@@ -921,7 +941,13 @@ void vTriggerShipBulletControl()
     }
     xSemaphoreGive(ShipBuffer.lock);
 }
-
+void vChangeLivesCondition()
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY)==pdTRUE){
+        AnimationsBuffer.LivesCondition=LivesLost;
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
 void vTaskShipShotControl(void *pvParameters)
 {
     while(1){
@@ -930,6 +956,7 @@ void vTaskShipShotControl(void *pvParameters)
             if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
                 vPlayShipShotSound();
                 PlayerInfoBuffer.LivesLeft-=1;
+                vChangeLivesCondition();
                 xSemaphoreGive(PlayerInfoBuffer.lock);
             }
         }
@@ -1217,7 +1244,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     TickType_t xPrevMovedTime = 0;
-    TickType_t xPrevAnimatedTime = 0;
+    TickType_t xPrevAnimatedTime = xTaskGetTickCount();
     TickType_t xPrevShotTime = 0;
 
     const TickType_t WakeRate = 15;
@@ -1267,7 +1294,7 @@ void vTaskSaucerActionControl(void *pvParameters)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t WakeRate = 15;
 
-    TickType_t xPrevAppearanceTime = 0;
+    TickType_t xPrevAppearanceTime = xTaskGetTickCount();
     const TickType_t xSecondMeasure = 1000;
     const TickType_t AppearancePeriod = 10*xSecondMeasure;
 
@@ -1325,7 +1352,7 @@ void xRetrieveCreaturesBulletAliveFlag(unsigned char* CreaturesBulletOnScreenFla
     }
 }
 
-void  xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
+void xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
 {
     if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){  
         if(ShipBuffer.Ship->bullet->BulletAliveFlag == 1){
@@ -1341,7 +1368,7 @@ void  xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
     }
 }
 
-void vSetShipBulletFlags()
+void vActivateShipBulletFlags()
 {
     if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
         if(ShipBuffer.BulletCrashed == 0 && ShipBuffer.Ship->bullet->BulletAliveFlag == 0){
@@ -1350,6 +1377,27 @@ void vSetShipBulletFlags()
             vPlayBulletSound();
             xSemaphoreGive(ShipBuffer.lock);
         }
+    }
+}
+
+void vControlLivesRedAnimation()
+{
+    const TickType_t LivesAnimationsTime = 2000;
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        if(AnimationsBuffer.LivesCondition==LivesLost && AnimationsBuffer.LivesTimerSet==0){
+            AnimationsBuffer.LivesColorRedTimer = xTaskGetTickCount();
+            AnimationsBuffer.LivesTimerSet=1;
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        else if(AnimationsBuffer.LivesTimerSet==1){ 
+            if(xTaskGetTickCount() - AnimationsBuffer.LivesColorRedTimer>=LivesAnimationsTime){
+                AnimationsBuffer.LivesCondition=LivesIntact;
+                AnimationsBuffer.LivesColorRedTimer=0;
+                AnimationsBuffer.LivesTimerSet=0;    
+            }
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
 
@@ -1463,11 +1511,13 @@ void vTaskPlayingGame(void *pvParameters)
         
         xCheckShipMoved();
         if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
-            vSetShipBulletFlags();
+            vActivateShipBulletFlags();
 
         xRetrieveSaucerAppearsFlag(&SaucerAppearsFlag);
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
+
+        vControlLivesRedAnimation();
 
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
@@ -1732,7 +1782,6 @@ void vTaskNextLevel(void *pvParameters)
                                 pdMS_TO_TICKS(UpdatePeriod));
             }
     }
-
 }
 
 void vSwapBuffers(void *pvParameters)
@@ -1799,7 +1848,6 @@ void vHandlePausedGameStateSM()
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
                break; 
         }
-        xSemaphoreGive(PausedGameInfoBuffer.lock);
     }
 }
 void vHandlePlayingGameStateSM()
@@ -2227,6 +2275,12 @@ int main(int argc, char *argv[])
         goto err_saucershottask;
     }
 
+    AnimationsBuffer.lock = xSemaphoreCreateMutex();
+    if(!AnimationsBuffer.lock){
+        PRINT_ERROR("Failed to create Animatons Buffer lock.");
+        goto err_animationsbuffer;
+    }
+
 
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
@@ -2246,6 +2300,9 @@ int main(int argc, char *argv[])
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
+
+err_animationsbuffer:
+    vTaskDelete(SaucerShotControlTask);
 err_saucershottask:
     vTaskDelete(SaucerActionControlTask);
 err_sauceractiontask:

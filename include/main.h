@@ -67,5 +67,10 @@ typedef enum SelectedGameOverOption_t{
     Quit
 }SelectedGameOverOption_t;
 
+typedef enum LivesAnimation_t{
+    LivesIntact,
+    LivesLost
+}LivesAnimation_t;
+
 void vHandleStateMachineActivation();
 #endif 
