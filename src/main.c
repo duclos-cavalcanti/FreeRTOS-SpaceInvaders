@@ -1912,6 +1912,7 @@ void vHandleStateMachineActivation()
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
             case ResetGameState:
+                vPrepareGameValues(1,0);
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleMainMenuStateSM();
