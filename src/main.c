@@ -1822,13 +1822,13 @@ void vHandlePlayingGameStateSM()
                 if(StateQueue)
                     xQueueSend(StateQueue,&NextLevelStateSignal, 0);
             case ResetGameAction:
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if (StateQueue)
                     xQueueSend(StateQueue,&ResetGameStateSignal, 0);
             case NoAction:
             default:
                break;
         }
-        xSemaphoreGive(OutsideGameActionsBuffer.lock);
     }
 }
 void vHandleMainMenuStateSM()
@@ -1848,6 +1848,7 @@ void vHandleMainMenuStateSM()
                 exit(EXIT_SUCCESS);
                 break;
 
+            case Cheats:
             case MultiPlayer:
             default:
                 xSemaphoreGive(MainMenuInfoBuffer.lock);
@@ -1949,6 +1950,7 @@ void vStateMachine(void *pvParameters){
 
                         case MainMenuState: // Begin 
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
                             if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
                             if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
@@ -1960,6 +1962,7 @@ void vStateMachine(void *pvParameters){
 
                         case PlayingState:
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
@@ -1971,6 +1974,7 @@ void vStateMachine(void *pvParameters){
 
                         case PausedState:
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
                             if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
                             if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
@@ -1982,6 +1986,7 @@ void vStateMachine(void *pvParameters){
 
                         case GameOverState:
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
@@ -1991,6 +1996,7 @@ void vStateMachine(void *pvParameters){
                         
                         case NextLevelState:
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
@@ -2000,6 +2006,7 @@ void vStateMachine(void *pvParameters){
 
                         case ResetGameState:
 
+                            xSemaphoreGive(GameStateBuffer.lock);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
@@ -2007,13 +2014,13 @@ void vStateMachine(void *pvParameters){
                             if(MainMenuTask) vTaskResume(MainMenuTask);
                             break;
                         default:
+                            xSemaphoreGive(GameStateBuffer.lock);
                             break;
                     }
 
                     GameStateBuffer.GameState=current_state;
                     changed_state=0; //Resets changed state
 
-                xSemaphoreGive(GameStateBuffer.lock);
             }
      }
 }
