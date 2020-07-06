@@ -406,8 +406,8 @@ void vSetLevelModifiersValues()
     xSemaphoreTake(LevelModifiersBuffer.lock, portMAX_DELAY);
         xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
             LevelModifiersBuffer.NumberOfSpeedChanges = 0;
-            LevelModifiersBuffer.SpeedChangeCount = 10 - 2 * (PlayerInfoBuffer.Level - 1);
-            LevelModifiersBuffer.MovingPeriod = 700 - 200*(PlayerInfoBuffer.Level - 1);
+            LevelModifiersBuffer.SpeedChangeCount = 5 - 1 * (PlayerInfoBuffer.Level - 1);
+            LevelModifiersBuffer.MovingPeriod = 700 - 50*(PlayerInfoBuffer.Level - 1);
             LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
             LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
         xSemaphoreGive(PlayerInfoBuffer.lock);
@@ -936,14 +936,18 @@ void vTaskShipShotControl(void *pvParameters)
     }
 }
 
-void vSpeedCreaturesControl()
+void vSpeedCreaturesControl(unsigned char* NumberOfCreaturesKilled)
 {
     if(xSemaphoreTake(LevelModifiersBuffer.lock, 0)==pdTRUE){
-        LevelModifiersBuffer.NumberOfSpeedChanges++;
-        if(LevelModifiersBuffer.NumberOfSpeedChanges>4){
+        (*NumberOfCreaturesKilled)++;
+
+        if((*NumberOfCreaturesKilled) >= LevelModifiersBuffer.SpeedChangeCount &&
+           LevelModifiersBuffer.NumberOfSpeedChanges < 6){ 
+
+            LevelModifiersBuffer.NumberOfSpeedChanges++;
             LevelModifiersBuffer.AnimationPeriod-=100;
             LevelModifiersBuffer.MovingPeriod-=100;
-            LevelModifiersBuffer.NumberOfSpeedChanges=0;
+            (*NumberOfCreaturesKilled)=0;
         }
         xSemaphoreGive(LevelModifiersBuffer.lock);
     }
@@ -959,6 +963,7 @@ void vCreatureScoreControl(unsigned char CreatureCollisionID)
 
 void vTaskCreaturesShotControl(void *pvParameters)
 {
+    unsigned char NumberOfCreaturesKilled=0;
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
@@ -970,7 +975,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
 
                 vPlayDeadCreatureSound();
                 vCreatureScoreControl(CreatureCollisionID);
-                vSpeedCreaturesControl();
+                vSpeedCreaturesControl(&NumberOfCreaturesKilled);
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
        } 

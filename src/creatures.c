@@ -190,7 +190,7 @@ unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
 
 unsigned char xCheckSingleCreatureReachedBottom(creature_t creature)
 {
-    if(creature.y_pos + CREATURE_HEIGHT/2 >= PLAYERSHIP_Y_BEGIN - PLAYERSHIP_HEIGHT/2)
+    if(creature.y_pos + CREATURE_HEIGHT/2 + 10 >= PLAYERSHIP_Y_BEGIN - PLAYERSHIP_HEIGHT/2)
         return 1;
     else
         return 0;
