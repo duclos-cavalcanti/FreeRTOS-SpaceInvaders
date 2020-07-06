@@ -46,6 +46,8 @@ static TaskHandle_t CreaturesShotControlTask = NULL;
 static TaskHandle_t CreaturesActionControlTask = NULL;
 static TaskHandle_t CreaturesBulletControlTask = NULL;
 static TaskHandle_t ShipShotControlTask = NULL;
+static TaskHandle_t SaucerActionControlTask = NULL;
+static TaskHandle_t SaucerShotControlTask = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -119,6 +121,9 @@ static ShipBuffer_t ShipBuffer = { 0 };
 
 typedef struct SaucerBuffer_t{
     saucer_t* saucer;
+    H_Movement_t Direction;
+    unsigned char SaucerHitFlag;
+    unsigned char SaucerAppearsFlag;
     SemaphoreHandle_t lock;
 }SaucerBuffer_t;
 static SaucerBuffer_t SaucerBuffer = { 0 };
@@ -153,8 +158,11 @@ typedef struct CreaturesBuffer_t{
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
 
 typedef struct LevelModifiersBuffer_t{
-    unsigned short SpeedChangeCount;
     unsigned short NumberOfSpeedChanges;
+    unsigned short SpeedChangeCount;
+    TickType_t ShootingPeriod;
+    TickType_t MovingPeriod;
+    TickType_t AnimationPeriod;
     SemaphoreHandle_t lock;
 }LevelModifiersBuffer_t;
 static LevelModifiersBuffer_t LevelModifiersBuffer = { 0 };
@@ -328,6 +336,9 @@ void vSetSaucerBufferValues()
 
         SaucerBuffer.saucer = CreateSinglePlayerSaucer();
         SaucerBuffer.saucer->Image = SaucerBoss;
+        SaucerBuffer.SaucerAppearsFlag=0;
+        SaucerBuffer.SaucerHitFlag=0;
+        SaucerBuffer.Direction = RIGHT;
 
     xSemaphoreGive(SaucerBuffer.lock);
 }
@@ -390,14 +401,15 @@ void vSetGameOverInfoBufferValues()
     xSemaphoreGive(GameOverInfoBuffer.lock);
 }
 
-void vSetLevelModifiersValues(TickType_t* ShootingPeriod, unsigned char* VerticalMovementThreshold)
+void vSetLevelModifiersValues()
 {
     xSemaphoreTake(LevelModifiersBuffer.lock, portMAX_DELAY);
         xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
             LevelModifiersBuffer.NumberOfSpeedChanges = 0;
             LevelModifiersBuffer.SpeedChangeCount = 10 - 2 * (PlayerInfoBuffer.Level - 1);
-            (*VerticalMovementThreshold) = 20 - 3 * (PlayerInfoBuffer.Level - 1);
-            (*ShootingPeriod) = 2000 - 250* (PlayerInfoBuffer.Level - 1);
+            LevelModifiersBuffer.MovingPeriod = 700 - 200*(PlayerInfoBuffer.Level - 1);
+            LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
+            LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     xSemaphoreGive(LevelModifiersBuffer.lock);
 }
@@ -410,7 +422,7 @@ void vPrepareGameValues(unsigned short Level, unsigned short Score)
     PlayerInfoBuffer.LivesLeft=3;
 }
 
-void vUpdatePlayerScore(unsigned char CreatureID)
+void vUpdatePlayerScoreCreatureKilled(unsigned char CreatureID)
 {
     static unsigned char AddOn=0;
     AddOn = xFetchCreatureValue(CreatureID);
@@ -924,31 +936,29 @@ void vTaskShipShotControl(void *pvParameters)
     }
 }
 
-void vSpeedCreaturesControl(unsigned char* SpeedChangeCount)
+void vSpeedCreaturesControl()
 {
-    (*SpeedChangeCount)++;
     if(xSemaphoreTake(LevelModifiersBuffer.lock, 0)==pdTRUE){
-        if((*SpeedChangeCount) % LevelModifiersBuffer.SpeedChangeCount==0){ 
-            LevelModifiersBuffer.NumberOfSpeedChanges++;
-            if(LevelModifiersBuffer.NumberOfSpeedChanges<3)
-                vUpdateCreaturesSpeed(CreaturesBuffer.Creatures);
+        LevelModifiersBuffer.NumberOfSpeedChanges++;
+        if(LevelModifiersBuffer.NumberOfSpeedChanges>4){
+            LevelModifiersBuffer.AnimationPeriod-=100;
+            LevelModifiersBuffer.MovingPeriod-=100;
+            LevelModifiersBuffer.NumberOfSpeedChanges=0;
         }
         xSemaphoreGive(LevelModifiersBuffer.lock);
     }
 }
 
-void vScoreControl(unsigned char CreatureCollisionID)
+void vCreatureScoreControl(unsigned char CreatureCollisionID)
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        vUpdatePlayerScore(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
+        vUpdatePlayerScoreCreatureKilled(CreaturesBuffer.Creatures[CreatureCollisionID].CreatureType);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 }
 
 void vTaskCreaturesShotControl(void *pvParameters)
 {
-    unsigned char SpeedChangeCount=0;
-
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
@@ -959,8 +969,8 @@ void vTaskCreaturesShotControl(void *pvParameters)
                                             CreatureCollisionID);
 
                 vPlayDeadCreatureSound();
-                vScoreControl(CreatureCollisionID);
-                vSpeedCreaturesControl(&SpeedChangeCount);
+                vCreatureScoreControl(CreatureCollisionID);
+                vSpeedCreaturesControl();
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
        } 
@@ -1001,12 +1011,37 @@ void vTaskBunkerShotControl(void *pvParameters)
     }
 
 }
+void vSaucerScoreControl()
+{
+    unsigned char AddOn = xFetchSaucerValue();
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        PlayerInfoBuffer.Score+=AddOn;
+        if(PlayerInfoBuffer.FreshGame==1 || PlayerInfoBuffer.Score > PlayerInfoBuffer.HiScore)
+            PlayerInfoBuffer.HiScore=PlayerInfoBuffer.Score;
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
+}
+void vTaskSaucerShotControl(void *pvParameters)
+{
+    while(1){
+        uint32_t SaucerCollisionID;
+        if(xTaskNotifyWait(0x00, 0xffffffff, &SaucerCollisionID, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY)==pdTRUE){
+                vKillSaucer(&SaucerBuffer.SaucerHitFlag, &SaucerBuffer.SaucerAppearsFlag);
+                vSaucerScoreControl();
+                vPlayDeadCreatureSound();
+                xSemaphoreGive(SaucerBuffer.lock);
+            }
+       } 
+    }
+}
 
 void vTaskShipBulletControl(void *pvParameters)
 {
     static unsigned char TopWallCollisionFlag=0;
     static unsigned char BunkerCollisionFlag=0;
     static signed char CreatureCollisionFlag=0;
+    static unsigned char SaucerCollisionFlag=0;
 
     while(1){
         uint32_t BulletLaunchSignal;
@@ -1015,34 +1050,50 @@ void vTaskShipBulletControl(void *pvParameters)
             if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){   
                 if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){   
                     if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){
-                        vUpdateShipBulletPos(ShipBuffer.Ship);
+                        if(xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY)==pdTRUE){
+                            vUpdateShipBulletPos(ShipBuffer.Ship);
 
-                        BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
-                                                                   ShipBuffer.Ship->bullet->y_pos,
-                                                                   (*BunkersBuffer.Bunkers));
-
-                        TopWallCollisionFlag=xCheckShipBulletCollisionTopWall(ShipBuffer.Ship->bullet->y_pos);
-
-                    
-                        CreatureCollisionFlag=xCheckCreaturesCollision(CreaturesBuffer.Creatures,
-                                                                       ShipBuffer.Ship->bullet->x_pos,
+                            BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
                                                                        ShipBuffer.Ship->bullet->y_pos,
-                                                                       CreaturesBuffer.HorizontalDirection,
-                                                                       CreaturesBuffer.FrontierCreaturesID);
+                                                                       (*BunkersBuffer.Bunkers));
 
-                        if(BunkerCollisionFlag || TopWallCollisionFlag || (CreatureCollisionFlag >=0)){  
-                            ShipBuffer.Ship->bullet->BulletAliveFlag=0;
-                            ShipBuffer.BulletCrashed=1;
+                            TopWallCollisionFlag=xCheckShipBulletCollisionTopWall(ShipBuffer.Ship->bullet->y_pos);
 
-                            if(BunkerCollisionFlag){  
-                                vTaskResume(BunkerShotControlTask);
-                                xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                        
+                            CreatureCollisionFlag=xCheckCreaturesCollision(CreaturesBuffer.Creatures,
+                                                                           ShipBuffer.Ship->bullet->x_pos,
+                                                                           ShipBuffer.Ship->bullet->y_pos,
+                                                                           CreaturesBuffer.HorizontalDirection,
+                                                                           CreaturesBuffer.FrontierCreaturesID);
+
+                            if(SaucerBuffer.SaucerAppearsFlag && SaucerBuffer.SaucerHitFlag==0){
+                                SaucerCollisionFlag=xCheckSaucerCollision(SaucerBuffer.saucer,
+                                                                          SaucerBuffer.Direction,
+                                                                          ShipBuffer.Ship->bullet->x_pos,
+                                                                          ShipBuffer.Ship->bullet->y_pos);
                             }
 
-                            else if(CreatureCollisionFlag>=0){
-                                vTaskResume(CreaturesShotControlTask);
-                                xTaskNotify(CreaturesShotControlTask, (uint32_t)CreatureCollisionFlag, eSetValueWithOverwrite);
+                            if(SaucerCollisionFlag || BunkerCollisionFlag || TopWallCollisionFlag || (CreatureCollisionFlag >=0)){  
+                                ShipBuffer.Ship->bullet->BulletAliveFlag=0;
+                                ShipBuffer.BulletCrashed=1;
+
+                                if(BunkerCollisionFlag){  
+                                    vTaskResume(BunkerShotControlTask);
+                                    xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                                }
+
+                                else if(CreatureCollisionFlag>=0){
+                                    vTaskResume(CreaturesShotControlTask);
+                                    xTaskNotify(CreaturesShotControlTask, (uint32_t)CreatureCollisionFlag, eSetValueWithOverwrite);
+                                }
+                                else if(SaucerCollisionFlag > 0){
+                                    vTaskResume(SaucerShotControlTask);
+                                    xTaskNotify(SaucerShotControlTask, (uint32_t)SaucerCollisionFlag, eSetValueWithOverwrite);
+                                    SaucerCollisionFlag=0;
+                                }
                             }
+
+                            xSemaphoreGive(SaucerBuffer.lock);
                         }
                         xSemaphoreGive(BunkersBuffer.lock);
                     }
@@ -1118,13 +1169,10 @@ void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures
         (*NumberOfLaps)++;
 }
 
-void vVerticalCreatureControl(unsigned char* NumberOfLaps, unsigned char* VerticalMovementThreshold)
+void vVerticalCreatureControl(unsigned char* NumberOfLaps)
 {
-    if((*NumberOfLaps) == (*VerticalMovementThreshold)){
-        printf("Went Down at: %d.\n", (*NumberOfLaps));
+    if((*NumberOfLaps) == 1){
         (*NumberOfLaps)=0;
-        if((*VerticalMovementThreshold) > 2)
-            (*VerticalMovementThreshold)--;
         vMoveCreaturesVerticalDown(CreaturesBuffer.Creatures);
     }
 }
@@ -1143,15 +1191,6 @@ void vTriggerCreaturesBunkerDestruction()
         }
     }
 }
-void vAnimationSpeedCreaturesControl(unsigned char* AnimationSpeedChangeThreshold, TickType_t* AnimationPeriod)
-{
-    if(CreaturesBuffer.NumbOfAliveCreatures == (*AnimationSpeedChangeThreshold)){
-        (*AnimationSpeedChangeThreshold)-=5;
-        if((*AnimationPeriod) > 100)
-            AnimationPeriod-=100;
-    }
-}
-
 void vCreaturesInitiateShoot(TickType_t* xPrevShotTime, TickType_t* ShootingPeriod)
 {
 
@@ -1172,44 +1211,40 @@ void vCreaturesInitiateShoot(TickType_t* xPrevShotTime, TickType_t* ShootingPeri
 void vTaskCreaturesActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+    TickType_t xPrevMovedTime = 0;
     TickType_t xPrevAnimatedTime = 0;
     TickType_t xPrevShotTime = 0;
 
-    TickType_t AnimationPeriod = 500;
-    TickType_t WakeRate = 15;
+    const TickType_t WakeRate = 15;
    
-    static unsigned char AnimationSpeedChangeThreshold = NUMB_OF_CREATURES - 5;
-    static unsigned char VerticalMovementThreshold = 0;
     static unsigned char NumberOfLaps = 0;
-    static TickType_t ShootingPeriod = 0;
     static H_Movement_t LastHorizontalDirectionOfCreatures = RIGHT;
 
     vSetCreaturesBufferValues();
-    vSetLevelModifiersValues(&ShootingPeriod, &VerticalMovementThreshold);
+    vSetLevelModifiersValues();
 
     printf("Level: %d\n", PlayerInfoBuffer.Level);
-    printf("SpeedChangeCount: %d\n", LevelModifiersBuffer.SpeedChangeCount);
-    printf("VerticalMovementThreshold: %d\n", VerticalMovementThreshold);
-    printf("Shooting Period in MS: %d\n", ShootingPeriod);
+    printf("MovingPeriod: %d\n", LevelModifiersBuffer.MovingPeriod);
+    printf("Shooting Period in MS: %d\n", LevelModifiersBuffer.ShootingPeriod);
 
     while(1){
         
-        if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+        if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
 
-            vAnimationSpeedCreaturesControl(&AnimationSpeedChangeThreshold, &AnimationPeriod);
-
-            if(xTaskGetTickCount() - xPrevAnimatedTime >= AnimationPeriod){   
+            if(xTaskGetTickCount() - xPrevAnimatedTime >= LevelModifiersBuffer.AnimationPeriod){   
                 vAnimateCreatures(); 
                 xPrevAnimatedTime = xTaskGetTickCount();
             }
             
-            vHorizontalCreatureControl(&LastHorizontalDirectionOfCreatures,
-                                       &NumberOfLaps);
+            if(xTaskGetTickCount() - xPrevMovedTime >= LevelModifiersBuffer.MovingPeriod){
+                vHorizontalCreatureControl(&LastHorizontalDirectionOfCreatures,
+                                           &NumberOfLaps);
+                xPrevMovedTime = xTaskGetTickCount();
+            }
 
-            vVerticalCreatureControl(&NumberOfLaps,
-                                     &VerticalMovementThreshold);
+            vVerticalCreatureControl(&NumberOfLaps);
 
-            vCreaturesInitiateShoot(&xPrevShotTime, &ShootingPeriod);
+            vCreaturesInitiateShoot(&xPrevShotTime, &LevelModifiersBuffer.ShootingPeriod);
 
             vTriggerCreaturesBunkerDestruction();
 
@@ -1221,6 +1256,56 @@ void vTaskCreaturesActionControl(void *pvParameters)
                         pdMS_TO_TICKS(WakeRate));
     }
 }
+
+void vTaskSaucerActionControl(void *pvParameters)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t WakeRate = 15;
+
+    TickType_t xPrevAppearanceTime = 0;
+    const TickType_t xSecondMeasure = 1000;
+    const TickType_t AppearancePeriod = 10*xSecondMeasure;
+
+    vSetSaucerBufferValues();
+
+    while(1){
+    
+        if(xSemaphoreTake(SaucerBuffer.lock,0)==pdTRUE){
+        
+            if(SaucerBuffer.SaucerHitFlag==0){
+                if(xTaskGetTickCount() - xPrevAppearanceTime >= AppearancePeriod){
+                    SaucerBuffer.SaucerAppearsFlag = !SaucerBuffer.SaucerAppearsFlag;
+                    xPrevAppearanceTime = xTaskGetTickCount();
+                }
+
+            if(SaucerBuffer.SaucerAppearsFlag==1){
+                vMoveSaucerHorizontal(SaucerBuffer.saucer, &SaucerBuffer.Direction);
+            }
+
+            }
+        
+            xSemaphoreGive(SaucerBuffer.lock);
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, 
+                        pdMS_TO_TICKS(WakeRate));
+    }
+}
+
+void xRetrieveSaucerAppearsFlag(unsigned char* SaucerAppearsFlag)
+{
+    if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
+       if(SaucerBuffer.SaucerAppearsFlag==1){
+            (*SaucerAppearsFlag) = 1;
+            xSemaphoreGive(SaucerBuffer.lock);
+       }
+       else {
+            (*SaucerAppearsFlag) = 0;
+            xSemaphoreGive(SaucerBuffer.lock);
+       }
+    }
+}
+
 void xRetrieveCreaturesBulletAliveFlag(unsigned char* CreaturesBulletOnScreenFlag)
 {
     if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1355,17 +1440,15 @@ void vTaskPlayingGame(void *pvParameters)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    vSetOutsideGameActionsBufferValues();
-    vSetShipsBufferValues();
-    vSetBunkersBufferValues();
-    vSetSaucerBufferValues();
-
     static unsigned char SPACE_DEBOUNCE_STATE = 0;
 
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
-
     static unsigned char SaucerAppearsFlag = 1;
+
+    vSetOutsideGameActionsBufferValues();
+    vSetShipsBufferValues();
+    vSetBunkersBufferValues();
 
     while(1){
         xGetButtonInput();
@@ -1377,6 +1460,7 @@ void vTaskPlayingGame(void *pvParameters)
         if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
             vSetShipBulletFlags();
 
+        xRetrieveSaucerAppearsFlag(&SaucerAppearsFlag);
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
 
@@ -1389,13 +1473,13 @@ void vTaskPlayingGame(void *pvParameters)
                     vDrawShip();                    
                     vDrawCreatures();
 
-                    if(SaucerAppearsFlag)
-                        vDrawSaucer();
-
                     if(CreaturesBulletOnScreenFlag)
                         vTriggerCreaturesBulletControl();
                     if(ShipBulletOnScreenFlag)
                         vTriggerShipBulletControl();
+
+                    if(SaucerAppearsFlag==1)
+                        vDrawSaucer();
 
                     vDrawBunkers();
                     vDrawLowerWall();
@@ -1584,12 +1668,12 @@ void vTaskGameOver(void *pvParameters)
     }
 }
 
-void vDrawCountDown(signed char* CountDownValue)
+void vDrawCountDown()
 {
     char CountDownChar[20];
     int CountDownCharWidth=0;
 
-    sprintf(CountDownChar,"Countdown: %d", (*CountDownValue));
+    sprintf(CountDownChar,"Loading...");
     if(!tumGetTextSize((char *)CountDownChar,&CountDownCharWidth, NULL)){
                     checkDraw(tumDrawText(CountDownChar,
                                           SCREEN_WIDTH*2/4-CountDownCharWidth/2,
@@ -1632,7 +1716,7 @@ void vTaskNextLevel(void *pvParameters)
                     tumDrawClear(Black);
                     vDrawStaticTexts();
                     vDrawNextLevelBanner();
-                    vDrawCountDown(&CountdownInSeconds);
+                    vDrawCountDown();
                     vDrawFPS(); 
 
                 xSemaphoreGive(ScreenLock);
@@ -1804,15 +1888,6 @@ void vHandleStateMachineActivation()
 
 void vRecreateGame()
 {
-    if(MainPlayingGameTask){
-        vTaskSuspend(MainPlayingGameTask);
-        vTaskDelete(MainPlayingGameTask);
-        if(xTaskCreate(vTaskPlayingGame, "MainPlayingGameTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                        configMAX_PRIORITIES-4, &MainPlayingGameTask) != pdPASS) 
-            exit(EXIT_SUCCESS);
-        vTaskSuspend(MainPlayingGameTask);
-    }
-
     if(CreaturesActionControlTask){ 
         vTaskSuspend(CreaturesActionControlTask);
         vTaskDelete(CreaturesActionControlTask);
@@ -1820,6 +1895,22 @@ void vRecreateGame()
                        configMAX_PRIORITIES - 3, &CreaturesActionControlTask)!=pdPASS)
             exit(EXIT_SUCCESS);
         vTaskSuspend(CreaturesActionControlTask);
+    }
+    if(SaucerActionControlTask){ 
+        vTaskSuspend(SaucerActionControlTask);
+        vTaskDelete(SaucerActionControlTask);
+        if(xTaskCreate(vTaskSaucerActionControl, "SaucerActionControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                       configMAX_PRIORITIES - 3, &SaucerActionControlTask)!=pdPASS)
+            exit(EXIT_SUCCESS);
+        vTaskSuspend(SaucerActionControlTask);
+    }
+    if(MainPlayingGameTask){
+        vTaskSuspend(MainPlayingGameTask);
+        vTaskDelete(MainPlayingGameTask);
+        if(xTaskCreate(vTaskPlayingGame, "MainPlayingGameTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                       configMAX_PRIORITIES-4, &MainPlayingGameTask) != pdPASS) 
+            exit(EXIT_SUCCESS);
+        vTaskSuspend(MainPlayingGameTask);
     }
 }
 
@@ -1852,6 +1943,7 @@ void vStateMachine(void *pvParameters){
                         case MainMenuState: // Begin 
 
                             if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
+                            if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
                             if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
                             if(PausedGameTask) vTaskSuspend(PausedGameTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
@@ -1866,12 +1958,14 @@ void vStateMachine(void *pvParameters){
                             if(GameOverTask) vTaskSuspend(GameOverTask);
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
                             if(CreaturesActionControlTask) vTaskResume(CreaturesActionControlTask);
+                            if(SaucerActionControlTask) vTaskResume(SaucerActionControlTask);
                             if(MainPlayingGameTask) vTaskResume(MainPlayingGameTask);
                             break;
 
                         case PausedState:
 
                             if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
+                            if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
                             if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
                             if(MainMenuTask) vTaskSuspend(MainMenuTask);
                             if(GameOverTask) vTaskSuspend(GameOverTask);
@@ -2105,6 +2199,19 @@ int main(int argc, char *argv[])
         goto err_saucerlock;
     }
 
+    if(xTaskCreate(vTaskSaucerActionControl, "SaucerActionControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 3, &SaucerActionControlTask)!=pdPASS){
+         
+        PRINT_ERROR("Failed to create SaucerActionControlTask.");
+        goto err_sauceractiontask;
+    }
+
+    if(xTaskCreate(vTaskSaucerShotControl, "SaucerShotControlTask", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 5, &SaucerShotControlTask)!=pdPASS){
+         
+        PRINT_ERROR("Failed to create SaucerShotControlTask.");
+        goto err_saucershottask;
+    }
 
 
     vTaskSuspend(MainMenuTask);
@@ -2117,13 +2224,18 @@ int main(int argc, char *argv[])
     vTaskSuspend(BunkerCreaturesCrashedTask);
     vTaskSuspend(CreaturesShotControlTask);
     vTaskSuspend(CreaturesActionControlTask);
+    vTaskSuspend(SaucerActionControlTask);
+    vTaskSuspend(SaucerShotControlTask);
     vTaskSuspend(CreaturesBulletControlTask);
     vTaskSuspend(ShipShotControlTask);
     
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
-
+err_saucershottask:
+    vTaskDelete(SaucerActionControlTask);
+err_sauceractiontask:
+    vSemaphoreDelete(SaucerBuffer.lock);
 err_saucerlock:
     vSemaphoreDelete(LevelModifiersBuffer.lock);
 err_levelmodifierlock:
