@@ -439,7 +439,7 @@ void vDrawStaticTexts(void)
     
     static int Score1_Width,Score2_Width,HiScoreWidth=0;
     
-    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, 0)==pdTRUE){
 
         sprintf(Score_1,
                 "P1-SCORE [ %d ]", PlayerInfoBuffer.Score);
@@ -564,7 +564,7 @@ void vDrawMainMenuOptions(void)
     static char LeaveChar[20];
     static int LeaveCharWidth=0;
 
-    if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){  
+    if(xSemaphoreTake(MainMenuInfoBuffer.lock, 0)==pdTRUE){  
 
         sprintf(SingleplayerChar,"Singleplayer");
         if(!tumGetTextSize((char *)SingleplayerChar,&SingleplayerCharWidth, NULL)){
@@ -604,7 +604,7 @@ void vDrawMainMenuOptions(void)
 
 unsigned char xCheckEnterPressed()
 {
-    if(xSemaphoreTake(buttons.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(buttons.lock, 0)==pdTRUE){
         if(buttons.buttons[KEYCODE(RETURN)]){
             xSemaphoreGive(buttons.lock);
             return 1;
@@ -617,18 +617,18 @@ unsigned char xCheckEnterPressed()
 void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
-    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 
         if (buttons.buttons[KEYCODE(DOWN)]) {
             if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
-                if(xSemaphoreTake(MainMenuInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                if(xSemaphoreTake(MainMenuInfoBuffer.lock,0)==pdTRUE){  
                     vDownMenuSelection(&MainMenuInfoBuffer.SelectedMenuOption);
                     xSemaphoreGive(MainMenuInfoBuffer.lock);
                 }
         }                            
         else if (buttons.buttons[KEYCODE(UP)]) { 
             if(buttons.buttons[KEYCODE(UP)]!=(*UP_DEBOUNCE_STATE))
-                if(xSemaphoreTake(MainMenuInfoBuffer.lock,portMAX_DELAY)==pdTRUE){  
+                if(xSemaphoreTake(MainMenuInfoBuffer.lock,0)==pdTRUE){  
                     vUpMenuSelection(&MainMenuInfoBuffer.SelectedMenuOption);
                     xSemaphoreGive(MainMenuInfoBuffer.lock);
                 }
@@ -728,7 +728,7 @@ void vDrawLevel()
 {
     static char str[20] = { 0 };
     static int strWidth = { 0 };
-    if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
         sprintf(str,"Level [ %d ]", PlayerInfoBuffer.Level);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
@@ -743,7 +743,7 @@ void vDrawLives()
     static char str[100] = { 0 };
     static int strWidth;
     
-    if(xSemaphoreTake(PlayerInfoBuffer.lock,portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
         sprintf(str,"Lives: [ %d ]", PlayerInfoBuffer.LivesLeft);
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
@@ -784,7 +784,7 @@ void vDrawCreatures()
 {
     unsigned char CreatureCountID=0;
 
-    if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
 
         for(int i=0;i<NUMB_OF_ROWS;i++){
             for(int j=0;j<NUMB_OF_COLUMNS;j++){ 
@@ -809,7 +809,7 @@ void vAnimateCreatures()
 }
 void vDrawBunkers()
 {
-    if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){  
+    if(xSemaphoreTake(BunkersBuffer.lock, 0)==pdTRUE){  
 
         if(BunkersBuffer.Bunkers->b1Lives>0)
             checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2, 
@@ -851,7 +851,7 @@ void vDrawLowerWall()
 }
 void vDrawShip()
 {
-    if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){
         checkDraw(tumDrawLoadedImage(PlayerShip, 
                                      ShipBuffer.Ship->x_pos - PLAYERSHIP_WIDTH/2,
                                      ShipBuffer.Ship->y_pos - PLAYERSHIP_HEIGHT/2),
@@ -861,7 +861,7 @@ void vDrawShip()
 }
 unsigned char xCheckShipShoot(unsigned char* SPACE_DEBOUNCE_STATE)
 {
-    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         if (buttons.buttons[KEYCODE(SPACE)]) {
             if(buttons.buttons[KEYCODE(SPACE)]!=(*SPACE_DEBOUNCE_STATE)){
                 (*SPACE_DEBOUNCE_STATE) = buttons.buttons[KEYCODE(SPACE)];
@@ -876,9 +876,9 @@ unsigned char xCheckShipShoot(unsigned char* SPACE_DEBOUNCE_STATE)
 }
 unsigned char xCheckShipMoved(void)
 {
-    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         if (buttons.buttons[KEYCODE(LEFT)]) {
-            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+            if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){  
                 if(ShipBuffer.Ship->x_pos >= PLAYERSHIP_WIDTH*3/4)
                     vIncrementShipLeft(ShipBuffer.Ship);
                 xSemaphoreGive(ShipBuffer.lock);
@@ -888,7 +888,7 @@ unsigned char xCheckShipMoved(void)
             xSemaphoreGive(buttons.lock);
         }                            
         if (buttons.buttons[KEYCODE(RIGHT)]) { 
-            if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+            if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){  
                 if(ShipBuffer.Ship->x_pos <= SCREEN_WIDTH - PLAYERSHIP_WIDTH*3/4)
                     vIncrementShipRight(ShipBuffer.Ship); 
                 xSemaphoreGive(ShipBuffer.lock);
@@ -904,7 +904,7 @@ unsigned char xCheckShipMoved(void)
 
 void vTriggerCreaturesBulletControl()
 {
-   if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+   if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
        vDrawCreaturesBullet(&CreaturesBuffer.CreaturesBullet);
        xSemaphoreGive(CreaturesBuffer.lock);
        vTaskResume(CreaturesBulletControlTask);
@@ -913,7 +913,7 @@ void vTriggerCreaturesBulletControl()
 }
 void vTriggerShipBulletControl()
 {
-    if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(ShipBuffer.lock, 0)==pdTRUE){
         vDrawShipBullet(ShipBuffer.Ship);
         vTaskResume(ShipBulletControlTask);
         xTaskNotify(ShipBulletControlTask, 0x01, eSetValueWithOverwrite);
@@ -1052,10 +1052,10 @@ void vTaskShipBulletControl(void *pvParameters)
         uint32_t BulletLaunchSignal;
 
         if(xTaskNotifyWait(0x00, 0xffffffff, &BulletLaunchSignal, portMAX_DELAY) == pdTRUE){
-            if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){   
-                if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){   
-                    if(xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY)==pdTRUE){
-                        if(xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(ShipBuffer.lock, 0)==pdTRUE){   
+                if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){   
+                    if(xSemaphoreTake(BunkersBuffer.lock, 0)==pdTRUE){
+                        if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
                             vUpdateShipBulletPos(ShipBuffer.Ship);
 
                             BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
@@ -1119,8 +1119,8 @@ void vTaskCreaturesBulletControl(void *pvParameters)
     while(1){
         uint32_t CreatureBulletControlSignal;
             if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureBulletControlSignal, portMAX_DELAY)==pdTRUE){
-                if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-                    if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)){ 
+                if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
+                    if(xSemaphoreTake(ShipBuffer.lock, 0)){ 
 
                         vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
 
@@ -1313,7 +1313,7 @@ void xRetrieveSaucerAppearsFlag(unsigned char* SaucerAppearsFlag)
 
 void xRetrieveCreaturesBulletAliveFlag(unsigned char* CreaturesBulletOnScreenFlag)
 {
-    if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
         if(CreaturesBuffer.BulletAliveFlag==1){
             xSemaphoreGive(CreaturesBuffer.lock);
             (*CreaturesBulletOnScreenFlag) = 1;
@@ -1327,7 +1327,7 @@ void xRetrieveCreaturesBulletAliveFlag(unsigned char* CreaturesBulletOnScreenFla
 
 void  xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
 {
-    if(xSemaphoreTake(ShipBuffer.lock,portMAX_DELAY)==pdTRUE){  
+    if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){  
         if(ShipBuffer.Ship->bullet->BulletAliveFlag == 1){
             xSemaphoreGive(ShipBuffer.lock);
             (*ShipBulletOnScreenFlag) = 1;
@@ -1358,7 +1358,7 @@ unsigned char xCheckLivesLeft()
     if (xSemaphoreTake(PlayerInfoBuffer.lock, 0) == pdTRUE){
         if (PlayerInfoBuffer.LivesLeft == 0){
             xSemaphoreGive(PlayerInfoBuffer.lock);
-            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, 0)==pdTRUE){
                 OutsideGameActionsBuffer.PlayerOutsideGameActions = LostGameAction;
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 return 1;
@@ -1374,7 +1374,7 @@ unsigned char xCheckPausePressed()
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
         if (buttons.buttons[KEYCODE(P)]){
             xSemaphoreGive(buttons.lock);
-            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, 0)==pdTRUE){
                 OutsideGameActionsBuffer.PlayerOutsideGameActions = PauseGameAction;
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
             }
@@ -1391,7 +1391,7 @@ unsigned char xCheckResetPressed()
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
         if (buttons.buttons[KEYCODE(R)]){
             xSemaphoreGive(buttons.lock);
-            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(OutsideGameActionsBuffer.lock, 0)==pdTRUE){
                 OutsideGameActionsBuffer.PlayerOutsideGameActions = ResetGameAction;
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
             }
@@ -1405,7 +1405,7 @@ unsigned char xCheckResetPressed()
 
 unsigned char  xCheckCreaturesLeft()
 {
-    if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
         if(CreaturesBuffer.NumbOfAliveCreatures==0){
             xSemaphoreGive(CreaturesBuffer.lock);
             if(xSemaphoreTake(OutsideGameActionsBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1422,7 +1422,7 @@ unsigned char  xCheckCreaturesLeft()
 
 unsigned char xCheckCreaturesReachedBottom()
 {
-    if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
         if(xCheckFrontierReachedBottom(CreaturesBuffer.Creatures,
                                         CreaturesBuffer.FrontierCreaturesID)){
             xSemaphoreGive(CreaturesBuffer.lock);
@@ -1533,7 +1533,7 @@ unsigned char xCheckResumePressed()
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
         if (buttons.buttons[KEYCODE(R)]){
             xSemaphoreGive(buttons.lock);
-            if(xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+            if(xSemaphoreTake(PausedGameInfoBuffer.lock, 0)==pdTRUE){
                 PausedGameInfoBuffer.PausedGameActions = ResumeGame;
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
             }
@@ -1611,7 +1611,7 @@ void vDrawGameOverBanner()
 void  xCheckGameOverSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
-    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 
         if (buttons.buttons[KEYCODE(DOWN)]) {
             if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
@@ -1706,8 +1706,10 @@ void vTaskNextLevel(void *pvParameters)
     const TickType_t UpdatePeriod = 20;
 
     while(1){
-        if(CountdownInSeconds==0)
+        if(CountdownInSeconds==0){
+            CountdownInSeconds=10;
             vHandleStateMachineActivation();
+        }
 
         if(xTaskGetTickCount() - xCountDown >= 1000){
             CountdownInSeconds--; 
