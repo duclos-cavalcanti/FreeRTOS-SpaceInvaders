@@ -109,3 +109,10 @@ unsigned char xFetchSaucerValue()
     value=value + 100;
     return value; 
 } 
+
+void vRetrieveDeadSaucerXY(signed short* DeadSaucerX, signed short* DeadSaucerY, saucer_t* saucer)
+{
+    (*DeadSaucerX) = saucer->x_pos;
+    (*DeadSaucerY) = saucer->y_pos;
+}
+

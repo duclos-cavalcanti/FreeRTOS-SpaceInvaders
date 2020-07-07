@@ -4,6 +4,7 @@
 #define PLAYERSHIP_HEIGHT 10
 #define PLAYERSHIP_WIDTH 30
 #define PLAYERSHIP_Y_BEGIN SCREEN_HEIGHT*90/100
+
 #define CREATURE_HEIGHT 21
 #define CREATURE_WIDTH 27
 
@@ -13,6 +14,8 @@
 #define CREATURE_SHOT_ANIMATION_W 25
 #define CREATURE_SHOT_ANIMATION_H 24
 
+#define SAUCER_SHOT_ANIMATION_W 31
+#define SAUCER_SHOT_ANIMATION_H 30
 
 void checkDraw(unsigned char status, const char *msg);
 

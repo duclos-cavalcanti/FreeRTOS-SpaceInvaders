@@ -35,6 +35,7 @@ unsigned char xCheckSaucerCollision(saucer_t* saucer,
 
 
 void vKillSaucer(unsigned char* SaucerHitFlag, unsigned char* SaucerAppearsFlag);
+void vRetrieveDeadSaucerXY(signed short* DeadSaucerX, signed short* DeadSaucerY, saucer_t* saucer);
 
 unsigned char xFetchSaucerValue();
 

@@ -76,6 +76,7 @@ static image_handle_t CreaturesHard_MenuScaled_0 = NULL;
 static image_handle_t CreaturesHard_MenuScaled_1 = NULL;
 
 static image_handle_t CreatureShotAnimation = NULL;
+static image_handle_t SaucerShotAnimation = NULL;
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -182,15 +183,23 @@ typedef struct GameOverInfoBuffer_t{
 static GameOverInfoBuffer_t GameOverInfoBuffer = { 0 };
 
 typedef struct AnimationsBuffer_t{
-    LivesAnimation_t LivesCondition;
     TickType_t LivesColorRedTimer;
+    LivesAnimation_t LivesCondition;
     unsigned char LivesTimerSet;
 
-    unsigned char CreatureShot;
     TickType_t CreatureShotAnimationTimer;
+    unsigned char CreatureShot;
     unsigned char CreatureShotAnimationTimerSet;
     signed short CreatureShotX;
     signed short CreatureShotY;
+
+    
+    
+    TickType_t SaucerShotAnimationTimer;
+    unsigned char SaucerShotAnimationTimerSet;
+    unsigned char SaucerShot;
+    signed short SaucerShotX;
+    signed short SaucerShotY;
 
     SemaphoreHandle_t lock;
 }AnimationsBuffer_t;
@@ -435,6 +444,7 @@ void vSetLevelModifiersValues()
 void vSetAnimationsBufferValues()
 {
     CreatureShotAnimation = tumDrawLoadImage("../resources/creature_destroyed.bmp");
+    SaucerShotAnimation = tumDrawLoadImage("../resources/saucer_destroyed.bmp");
 
     xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY);
 
@@ -447,6 +457,12 @@ void vSetAnimationsBufferValues()
         AnimationsBuffer.CreatureShot=0;
         AnimationsBuffer.CreatureShotX=0;
         AnimationsBuffer.CreatureShotY=0;
+
+        AnimationsBuffer.SaucerShotAnimationTimer=0;
+        AnimationsBuffer.SaucerShotAnimationTimerSet=0;
+        AnimationsBuffer.SaucerShot=0;
+        AnimationsBuffer.SaucerShotX=0;
+        AnimationsBuffer.SaucerShotY=0;
 
     xSemaphoreGive(AnimationsBuffer.lock);
 }
@@ -808,6 +824,18 @@ void vDrawSingleCreature(unsigned char creatureID)
                                      CreaturesBuffer.Creatures[creatureID].y_pos - CREATURE_HEIGHT/2),
                                      __FUNCTION__); 
 }
+
+void vDrawSaucerDestruction()
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        checkDraw(tumDrawLoadedImage(SaucerShotAnimation, 
+                                     AnimationsBuffer.SaucerShotX - SAUCER_SHOT_ANIMATION_W/2,
+                                     AnimationsBuffer.SaucerShotY - SAUCER_SHOT_ANIMATION_H/2),
+                                     __FUNCTION__);
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
 void vDrawSaucer()
 {
     if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
@@ -969,7 +997,7 @@ void vTriggerShipBulletControl()
     }
     xSemaphoreGive(ShipBuffer.lock);
 }
-void vChangeLivesAnimationsState()
+void vActivateLivesAnimationState()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY)==pdTRUE){
         AnimationsBuffer.LivesCondition=LivesLost;
@@ -985,7 +1013,7 @@ void vTaskShipShotControl(void *pvParameters)
                 vPlayShipShotSound();
                 if(PlayerInfoBuffer.LivesLeft > 0)
                     PlayerInfoBuffer.LivesLeft-=1;
-                vChangeLivesAnimationsState();
+                vActivateLivesAnimationState();
                 xSemaphoreGive(PlayerInfoBuffer.lock);
             }
         }
@@ -1017,7 +1045,7 @@ void vCreatureScoreControl(unsigned char CreatureCollisionID)
     }
 }
 
-void vActivateCreatureDestroyedAnimation(unsigned char CreatureCollisionID, creature_t* Creatures)
+void vActivateCreatureDestroyedAnimationState(unsigned char CreatureCollisionID, creature_t* Creatures)
 {
     signed short DeadCreatureX,DeadCreatureY;
     if(xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1044,12 +1072,11 @@ void vTaskCreaturesShotControl(void *pvParameters)
                 vPlayDeadCreatureSound();
                 vCreatureScoreControl(CreatureCollisionID);
                 vSpeedCreaturesControl(&NumberOfCreaturesKilled);
-                vActivateCreatureDestroyedAnimation(CreatureCollisionID, CreaturesBuffer.Creatures);
+                vActivateCreatureDestroyedAnimationState(CreatureCollisionID, CreaturesBuffer.Creatures);
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
        } 
     }
-
 }
 
 void vTaskBunkerCreaturesCrashed(void *pvParameters)
@@ -1085,6 +1112,17 @@ void vTaskBunkerShotControl(void *pvParameters)
     }
 
 }
+void vActivateSaucerShotAnimationState(saucer_t* saucer)
+{
+    signed short DeadSaucerX, DeadSaucerY;
+    if(xSemaphoreTake(AnimationsBuffer.lock,portMAX_DELAY)==pdTRUE){
+        vRetrieveDeadSaucerXY(&DeadSaucerX, &DeadSaucerY, saucer);
+        AnimationsBuffer.SaucerShotX=DeadSaucerX;
+        AnimationsBuffer.SaucerShotY=DeadSaucerY;
+        AnimationsBuffer.SaucerShot=1;
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
 void vSaucerScoreControl()
 {
     unsigned char AddOn = xFetchSaucerValue();
@@ -1104,6 +1142,7 @@ void vTaskSaucerShotControl(void *pvParameters)
                 vKillSaucer(&SaucerBuffer.SaucerHitFlag, &SaucerBuffer.SaucerAppearsFlag);
                 vSaucerScoreControl();
                 vPlayDeadCreatureSound();
+                vActivateSaucerShotAnimationState(SaucerBuffer.saucer);
                 xSemaphoreGive(SaucerBuffer.lock);
             }
        } 
@@ -1366,6 +1405,17 @@ void vTaskSaucerActionControl(void *pvParameters)
     }
 }
 
+void xRetrieveSaucerDestroyedAnimationFlag(unsigned char* SaucerDestroyedAnimationFlag)
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        if(AnimationsBuffer.SaucerShot==1) 
+            (*SaucerDestroyedAnimationFlag)=1;
+        else
+            (*SaucerDestroyedAnimationFlag)=0;
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
 void xRetrieveCreatureDestroyedAnimationFlag(unsigned char* CreatureDestroyedAnimationFlag)
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
@@ -1429,6 +1479,27 @@ void vActivateShipBulletFlags()
             vPlayBulletSound();
             xSemaphoreGive(ShipBuffer.lock);
         }
+    }
+}
+
+void vControlSaucerShotAnimation()
+{
+    const TickType_t SaucerShotAnimationTime = 250;
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        if(AnimationsBuffer.SaucerShot==1 && AnimationsBuffer.SaucerShotAnimationTimerSet==0){
+            AnimationsBuffer.SaucerShotAnimationTimer = xTaskGetTickCount();
+            AnimationsBuffer.SaucerShotAnimationTimerSet=1;
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        else if(AnimationsBuffer.SaucerShotAnimationTimerSet==1){
+            if(xTaskGetTickCount() - AnimationsBuffer.SaucerShotAnimationTimer >= SaucerShotAnimationTime){
+                AnimationsBuffer.SaucerShot=0; 
+                AnimationsBuffer.SaucerShotAnimationTimerSet=0;
+                AnimationsBuffer.SaucerShotAnimationTimer=0; 
+            }
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
 
@@ -1569,6 +1640,7 @@ void vTaskPlayingGame(void *pvParameters)
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
     static unsigned char CreatureDestroyedAnimationFlag = 0;
+    static unsigned char SaucerDestroyedAnimationFlag = 0;
     static unsigned char SaucerAppearsFlag = 0;
 
     vSetOutsideGameActionsBufferValues();
@@ -1590,9 +1662,11 @@ void vTaskPlayingGame(void *pvParameters)
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
         xRetrieveCreatureDestroyedAnimationFlag(&CreatureDestroyedAnimationFlag);
+        xRetrieveSaucerDestroyedAnimationFlag(&SaucerDestroyedAnimationFlag);
 
         vControlLivesRedAnimation();
         vControlCreaturesShotAnimation();
+        vControlSaucerShotAnimation();
 
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
@@ -1611,7 +1685,8 @@ void vTaskPlayingGame(void *pvParameters)
                         vDrawSaucer();
                     if(CreatureDestroyedAnimationFlag)
                         vDrawCreatureDestruction();
-
+                    if(SaucerDestroyedAnimationFlag)
+                        vDrawSaucerDestruction();
 
                     vDrawBunkers();
                     vDrawLowerWall();
