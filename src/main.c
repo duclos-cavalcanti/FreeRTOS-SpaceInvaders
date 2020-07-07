@@ -983,7 +983,8 @@ void vTaskShipShotControl(void *pvParameters)
         if(xTaskNotifyWait(0x00, 0xffffffff, &ShipShotSignal, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
                 vPlayShipShotSound();
-                PlayerInfoBuffer.LivesLeft-=1;
+                if(PlayerInfoBuffer.LivesLeft > 0)
+                    PlayerInfoBuffer.LivesLeft-=1;
                 vChangeLivesAnimationsState();
                 xSemaphoreGive(PlayerInfoBuffer.lock);
             }
@@ -1433,7 +1434,7 @@ void vActivateShipBulletFlags()
 
 void vControlLivesRedAnimation()
 {
-    const TickType_t LivesAnimationsTime = 2000;
+    const TickType_t LivesAnimationsTime = 1200;
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
         if(AnimationsBuffer.LivesCondition==LivesLost && AnimationsBuffer.LivesTimerSet==0){
             AnimationsBuffer.LivesColorRedTimer = xTaskGetTickCount();
@@ -1984,7 +1985,6 @@ void vHandleMainMenuStateSM()
 }
 void vHandleStateMachineActivation()
 {
-
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
             case ResetGameState:
