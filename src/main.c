@@ -62,6 +62,11 @@ static image_handle_t NextLevel = NULL;
 static image_handle_t PlayerShip = NULL;
 
 static image_handle_t Bunker = NULL;
+static image_handle_t BunkerHit1 = NULL;
+static image_handle_t BunkerHit2 = NULL;
+static image_handle_t BunkerHit3 = NULL;
+static image_handle_t BunkerHit4 = NULL;
+
 
 static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
@@ -146,6 +151,7 @@ static PlayerBuffer_t PlayerInfoBuffer = { 0 };
 
 typedef struct BunkersBuffer_t{
     bunkers_t* Bunkers;
+    image_handle_t ImagesCatalog[5];
     SemaphoreHandle_t lock;
 }BunkersBuffer_t;
 static BunkersBuffer_t BunkersBuffer = { 0 };
@@ -358,7 +364,6 @@ void vSetShipsBufferValues()
         ShipBuffer.BulletCrashed=0;
 
     xSemaphoreGive(ShipBuffer.lock);
-
 }
 void vSetSaucerBufferValues()
 {
@@ -409,6 +414,17 @@ void vSetBunkersBufferValues()
     xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY);
 
         Bunker = tumDrawLoadImage("../resources/bunker.bmp");
+        BunkerHit1 = tumDrawLoadImage("../resources/bunker_hit1.bmp");
+        BunkerHit2 = tumDrawLoadImage("../resources/bunker_hit2.bmp");
+        BunkerHit3 = tumDrawLoadImage("../resources/bunker_hit3.bmp");
+        BunkerHit4 = tumDrawLoadImage("../resources/bunker_hit4.bmp");
+
+        BunkersBuffer.ImagesCatalog[0]=Bunker;
+        BunkersBuffer.ImagesCatalog[1]=BunkerHit1;
+        BunkersBuffer.ImagesCatalog[2]=BunkerHit2;
+        BunkersBuffer.ImagesCatalog[3]=BunkerHit3;
+        BunkersBuffer.ImagesCatalog[4]=BunkerHit4;
+
         BunkersBuffer.Bunkers = CreateBunkers();
 
     xSemaphoreGive(BunkersBuffer.lock);
@@ -890,25 +906,25 @@ void vDrawBunkers()
     if(xSemaphoreTake(BunkersBuffer.lock, 0)==pdTRUE){  
 
         if(BunkersBuffer.Bunkers->b1Lives>0)
-            checkDraw(tumDrawLoadedImage(Bunker,
+            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b1Lives],
                                          BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2,
                                          BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2),
                                          __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b2Lives>0)
-            checkDraw(tumDrawLoadedImage(Bunker,
+            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b2Lives],
                                          BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2,
                                          BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2),
                                          __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b3Lives>0)
-            checkDraw(tumDrawLoadedImage(Bunker,
+            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b3Lives],
                                          BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2,
                                          BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2),
                                          __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b4Lives>0)
-            checkDraw(tumDrawLoadedImage(Bunker,
+            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b4Lives],
                                          BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2,
                                          BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2),
                                          __FUNCTION__);
