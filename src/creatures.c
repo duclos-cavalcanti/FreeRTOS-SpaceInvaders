@@ -322,6 +322,13 @@ void vMoveCreaturesRightHorizontal(creature_t* creatures)
     }
 }
 
+unsigned char xCheckDirectionChange(H_Movement_t* LastDirection, H_Movement_t CurrentHorizontalDirection)
+{
+   if((*LastDirection)!=CurrentHorizontalDirection)
+       return 1;
+   else
+       return 0;
+}
 void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
 {
     (*DIRECTION) = xCheckDirectionOfRows(creatures, (*DIRECTION));

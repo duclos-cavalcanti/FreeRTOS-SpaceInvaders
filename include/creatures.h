@@ -110,6 +110,7 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                      H_Movement_t Direction,
                                      signed short* FrontierCreaturesID);
 
+unsigned char xCheckDirectionChange(H_Movement_t* LastDirection, H_Movement_t CurrentHorizontalDirection);
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);
 void vMoveCreaturesVerticalDown(creature_t* creatures);
 

@@ -60,6 +60,9 @@ static image_handle_t TitleScreen = NULL;
 static image_handle_t GameOver = NULL;
 static image_handle_t NextLevel = NULL;
 static image_handle_t PlayerShip = NULL;
+
+static image_handle_t Bunker = NULL;
+
 static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
 static image_handle_t CreatureEASY_0 = NULL;
@@ -405,6 +408,7 @@ void vSetBunkersBufferValues()
 {
     xSemaphoreTake(BunkersBuffer.lock, portMAX_DELAY);
 
+        Bunker = tumDrawLoadImage("../resources/bunker.bmp");
         BunkersBuffer.Bunkers = CreateBunkers();
 
     xSemaphoreGive(BunkersBuffer.lock);
@@ -839,12 +843,10 @@ void vDrawSaucerDestruction()
 void vDrawSaucer()
 {
     if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
-         
         checkDraw(tumDrawLoadedImage(SaucerBoss,
                                      SaucerBuffer.saucer->x_pos-SAUCER_WIDTH/2,
                                      SaucerBuffer.saucer->y_pos-SAUCER_WIDTH/2),
                                      __FUNCTION__);
-    
         xSemaphoreGive(SaucerBuffer.lock);
     }
 }
@@ -888,32 +890,28 @@ void vDrawBunkers()
     if(xSemaphoreTake(BunkersBuffer.lock, 0)==pdTRUE){  
 
         if(BunkersBuffer.Bunkers->b1Lives>0)
-            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2, 
-                                       BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2,
-                                       BunkersBuffer.Bunkers->b1->size, BunkersBuffer.Bunkers->b1->size,
-                                       BunkersBuffer.Bunkers->b1->color),
-                                       __FUNCTION__);
+            checkDraw(tumDrawLoadedImage(Bunker,
+                                         BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2,
+                                         BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2),
+                                         __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b2Lives>0)
-            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2, 
-                                       BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2,
-                                       BunkersBuffer.Bunkers->b2->size, BunkersBuffer.Bunkers->b2->size,
-                                       BunkersBuffer.Bunkers->b2->color),
-                                       __FUNCTION__);
+            checkDraw(tumDrawLoadedImage(Bunker,
+                                         BunkersBuffer.Bunkers->b2->x_pos - BunkersBuffer.Bunkers->b2->size/2,
+                                         BunkersBuffer.Bunkers->b2->y_pos - BunkersBuffer.Bunkers->b2->size/2),
+                                         __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b3Lives>0)
-            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2, 
-                                       BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2,
-                                       BunkersBuffer.Bunkers->b3->size, BunkersBuffer.Bunkers->b3->size,
-                                       BunkersBuffer.Bunkers->b3->color),
-                                       __FUNCTION__);
+            checkDraw(tumDrawLoadedImage(Bunker,
+                                         BunkersBuffer.Bunkers->b3->x_pos - BunkersBuffer.Bunkers->b3->size/2,
+                                         BunkersBuffer.Bunkers->b3->y_pos - BunkersBuffer.Bunkers->b3->size/2),
+                                         __FUNCTION__);
 
         if(BunkersBuffer.Bunkers->b4Lives>0)
-            checkDraw(tumDrawFilledBox(BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2, 
-                                       BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2,
-                                       BunkersBuffer.Bunkers->b4->size, BunkersBuffer.Bunkers->b4->size,
-                                       BunkersBuffer.Bunkers->b4->color),
-                                       __FUNCTION__);
+            checkDraw(tumDrawLoadedImage(Bunker,
+                                         BunkersBuffer.Bunkers->b4->x_pos - BunkersBuffer.Bunkers->b4->size/2,
+                                         BunkersBuffer.Bunkers->b4->y_pos - BunkersBuffer.Bunkers->b4->size/2),
+                                         __FUNCTION__);
 
         xSemaphoreGive(BunkersBuffer.lock);
     }
@@ -1265,20 +1263,12 @@ void vTaskCreaturesBulletControl(void *pvParameters)
     }
 }
 
-unsigned char xCheckDirectionChange(H_Movement_t* LastDirection)
-{
-   if((*LastDirection)!=CreaturesBuffer.HorizontalDirection)
-       return 1;
-   else
-       return 0;
-}
-
 void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures,
                                 unsigned char* NumberOfLaps)
 {
     (*LastHorizontalDirectionOfCreatures) = CreaturesBuffer.HorizontalDirection; 
     vMoveCreaturesHorizontal(CreaturesBuffer.Creatures, &CreaturesBuffer.HorizontalDirection);
-    if(xCheckDirectionChange(LastHorizontalDirectionOfCreatures))
+    if(xCheckDirectionChange(LastHorizontalDirectionOfCreatures, CreaturesBuffer.HorizontalDirection))
         (*NumberOfLaps)++;
 }
 
@@ -1356,9 +1346,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
             }
 
             vVerticalCreatureControl(&NumberOfLaps);
-
             vCreaturesInitiateShoot(&xPrevShotTime, &LevelModifiersBuffer.ShootingPeriod);
-
             vTriggerCreaturesBunkerDestruction();
 
 
