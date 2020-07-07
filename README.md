@@ -1,6 +1,6 @@
 # Space Invaders
 
-A loosely based version of the classic arcade video game - Space Invaders - developed by Tomohiro Nishikado and released in 1978. This project was written in C and done so as a class assignment for the Technical University of Munich under the Embedded System Programming Lab class. As a tool to emulate embedded hardware behavior, where the program would run on, FreeRTOS was used. Corresponding documentation to this tool and simple guidelines on how to use it will be seen below, as they were taken from [GitHub Pages](https://github.com/alxhoff/FreeRTOS-Emulator). Almost all sprites/bitmap images were taken and inspired from this awesome [GitHub Pages](https://github.com/flightcrank/space-invaders).
+A loosely based version of the classic arcade video game - Space Invaders - developed by Tomohiro Nishikado and released in 1978. This project was written in C and done so as a class assignment for the Technical University of Munich under the Embedded System Programming Lab. FreeRTOS was used as tool to emulate embedded hardware behavior where the this would run on. Corresponding documentation to this tool and simple guidelines on how to use it will be seen below, as they were taken from [GitHub Pages](https://github.com/alxhoff/FreeRTOS-Emulator). Many sprites/bitmap images were taken and inspired from [GitHub Pages](https://github.com/flightcrank/space-invaders).
 
 
 ## The FreeRTOS Emulator
@@ -275,4 +275,4 @@ Extenal libraries etc are only linked against and not compiled using this flag, 
 
 ---
 
-<a href="https://www.buymeacoffee.com/xmyWYwD" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/lato-green.png" alt="Buy Me A Coffee" style="height: 11px !important;" ></a>
+<a href="https://www.buymeacoffee.com/xmyWYwD" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/lato-green.png" alt="Buy My Professor A Coffee" style="height: 11px !important;" ></a>
