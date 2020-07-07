@@ -1532,8 +1532,7 @@ void vTaskPlayingGame(void *pvParameters)
                         vTriggerCreaturesBulletControl();
                     if(ShipBulletOnScreenFlag)
                         vTriggerShipBulletControl();
-
-                    if(SaucerAppearsFlag==1)
+                    if(SaucerAppearsFlag)
                         vDrawSaucer();
 
                     vDrawBunkers();
