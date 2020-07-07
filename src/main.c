@@ -833,9 +833,7 @@ void vDrawCreatureDestruction()
 void vDrawCreatures()
 {
     unsigned char CreatureCountID=0;
-
     if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
-
         for(int i=0;i<NUMB_OF_ROWS;i++){
             for(int j=0;j<NUMB_OF_COLUMNS;j++){ 
                 if(CreaturesBuffer.Creatures[CreatureCountID].Alive==1)
@@ -1456,7 +1454,7 @@ void vControlLivesRedAnimation()
 
 void vControlCreaturesShotAnimation()
 {
-    const TickType_t DeadCreatureAnimationTime = 500;
+    const TickType_t DeadCreatureAnimationTime = 250;
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
         if(AnimationsBuffer.CreatureShot==1 && AnimationsBuffer.CreatureShotAnimationTimerSet==0){
             AnimationsBuffer.CreatureShotAnimationTimer=xTaskGetTickCount(); 
@@ -1471,6 +1469,7 @@ void vControlCreaturesShotAnimation()
             }
             xSemaphoreGive(AnimationsBuffer.lock);
         }
+        xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
 
@@ -1569,7 +1568,7 @@ void vTaskPlayingGame(void *pvParameters)
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
     static unsigned char CreatureDestroyedAnimationFlag = 0;
-    static unsigned char SaucerAppearsFlag = 1;
+    static unsigned char SaucerAppearsFlag = 0;
 
     vSetOutsideGameActionsBufferValues();
     vSetShipsBufferValues();
@@ -1989,6 +1988,7 @@ void vHandleStateMachineActivation()
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
             case ResetGameState:
+                vPrepareGameValues(1,0);
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleMainMenuStateSM();
