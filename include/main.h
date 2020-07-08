@@ -82,5 +82,11 @@ typedef enum LivesAnimation_t{
     LivesGained
 }LivesAnimation_t;
 
+typedef enum TypesOfNewGames_t{
+    NewGameFromScratch,
+    NewGameNextLevel
+}TypesOfNewGames_t;
+
+
 void vHandleStateMachineActivation();
 #endif 

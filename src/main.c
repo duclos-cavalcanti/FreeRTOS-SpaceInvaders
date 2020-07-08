@@ -490,17 +490,31 @@ void vSetAnimationsBufferValues()
     xSemaphoreGive(AnimationsBuffer.lock);
 }
 
-void vPrepareGameValues(unsigned short Level, unsigned short Score)
+void vPrepareGameValues(TypesOfNewGames_t TypeOfNewGame)
 { 
     if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        PlayerInfoBuffer.Score=Score;
-        PlayerInfoBuffer.Level=Level;
-        PlayerInfoBuffer.FreshGame=0;
-        if (Score == 0){
-            PlayerInfoBuffer.NewLivesAddedThreshold = INITIAL_POINTS_THRESHOLD;
-            PlayerInfoBuffer.LivesLeft=3;
-        }
 
+        switch(TypeOfNewGame){
+            case(NewGameFromScratch):
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                PlayerInfoBuffer.Score=0;
+                PlayerInfoBuffer.Level=1;
+                PlayerInfoBuffer.FreshGame=0;
+                PlayerInfoBuffer.LivesLeft=3;
+                PlayerInfoBuffer.NewLivesAddedThreshold = INITIAL_POINTS_THRESHOLD;
+                break;
+
+            case(NewGameNextLevel):
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                PlayerInfoBuffer.Level++;
+                PlayerInfoBuffer.FreshGame=0;
+                PlayerInfoBuffer.Score=PlayerInfoBuffer.Score;
+                break;
+        
+            default:
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                break;
+        }
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 }
@@ -1089,8 +1103,10 @@ void vTaskCreaturesShotControl(void *pvParameters)
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){ vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
                               &CreaturesBuffer.NumbOfAliveCreatures);
-                vUpdateFrontierCreaturesIDs(CreaturesBuffer.FrontierCreaturesID,
-                                            CreatureCollisionID);
+                if(xCheckKilledCreatureWithinFrontier(CreatureCollisionID, CreaturesBuffer.FrontierCreaturesID))
+                    vUpdateFrontierCreaturesIDs(CreaturesBuffer.FrontierCreaturesID,
+                                                CreatureCollisionID,
+                                                CreaturesBuffer.Creatures);
 
                 vPlayDeadCreatureSound();
                 vCreatureScoreControl(CreatureCollisionID);
@@ -1363,10 +1379,6 @@ void vTaskCreaturesActionControl(void *pvParameters)
 
     vSetCreaturesBufferValues();
     vSetLevelModifiersValues();
-
-    printf("Level: %d\n", PlayerInfoBuffer.Level);
-    printf("MovingPeriod: %d\n", LevelModifiersBuffer.MovingPeriod);
-    printf("Shooting Period in MS: %d\n", LevelModifiersBuffer.ShootingPeriod);
 
     while(1){
         
@@ -2013,7 +2025,7 @@ void vSwapBuffers(void *pvParameters)
 }
 void vHandleNextLevelStateSM()
 {
-        vPrepareGameValues(PlayerInfoBuffer.Level+1, PlayerInfoBuffer.Score);
+        vPrepareGameValues(NewGameNextLevel);
         if(StateQueue)
             xQueueSend(StateQueue,&PlayingStateSignal, 0);
 }
@@ -2023,7 +2035,7 @@ void vHandleGameOverStateSM()
         switch(GameOverInfoBuffer.SelectedGameOverOption){
             case PlayAgain:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
-                vPrepareGameValues(1,0);
+                vPrepareGameValues(NewGameFromScratch);
                 if(StateQueue)
                     xQueueSend(StateQueue,&MainMenuStateSignal, 0);
                 break; 
@@ -2050,7 +2062,7 @@ void vHandlePausedGameStateSM()
                 break; 
             case RestartReset:
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
-                vPrepareGameValues(1,0);
+                vPrepareGameValues(NewGameFromScratch);
                 if(StateQueue)
                     xQueueSend(StateQueue,&ResetGameStateSignal, 0);
                 break; 
@@ -2092,6 +2104,12 @@ void vHandlePlayingGameStateSM()
         }
     }
 }
+void vHandleResetGameStateSM()
+{
+    vPrepareGameValues(NewGameFromScratch);
+    if(StateQueue)
+        xQueueSend(StateQueue,&PlayingStateSignal, 0);
+}
 void vHandleMainMenuStateSM()
 {
     if(xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -2123,8 +2141,6 @@ void vHandleStateMachineActivation()
 {
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
-            case ResetGameState:
-                vPrepareGameValues(1,0);
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleMainMenuStateSM();
@@ -2147,6 +2163,11 @@ void vHandleStateMachineActivation()
             case NextLevelState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleNextLevelStateSM();
+                break;
+            case ResetGameState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleResetGameStateSM();
+                break;
             default:
                 break; 
         

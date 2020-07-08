@@ -89,19 +89,112 @@ void vAssignFrontierCreatures(signed short FrontierCreaturesID[8])
        FrontierCreaturesID[i]=i;
 }
 
-void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID)
+unsigned char xCheckKilledCreatureWithinFrontier(unsigned char CreatureCollisionID, signed short* FrontierCreaturesID)
 {
-    if(CreatureHitID < NUMB_OF_COLUMNS)
-        FrontierCreaturesID[CreatureHitID] += 8;
-    else if(CreatureHitID < NUMB_OF_COLUMNS*2)
-        FrontierCreaturesID[CreatureHitID - 8] += 8;
-    else if(CreatureHitID < NUMB_OF_COLUMNS*3)
-        FrontierCreaturesID[CreatureHitID - 16] += 8;
-    else if(CreatureHitID < NUMB_OF_COLUMNS*4)
-        FrontierCreaturesID[CreatureHitID - 24] += 8;
-    else
-        FrontierCreaturesID[CreatureHitID - 32] = -1;
 
+    for(int i=0;i<NUMB_OF_COLUMNS;++i){
+        if(FrontierCreaturesID[i]==CreatureCollisionID) 
+                return 1;
+    }
+
+    return 0;
+}
+
+unsigned char xCheckCreatureBehindAlive(creature_t* creatures, 
+                                        unsigned char CreatureHitID,
+                                        Rows_t Row)
+{
+    switch(Row){
+        case Row_1:
+            if(creatures[CreatureHitID + 8].Alive == 1)
+                return 1;
+            if(creatures[CreatureHitID + 16].Alive == 1)
+                return 2;
+            if(creatures[CreatureHitID + 24].Alive == 1)
+                return 3;
+            if(creatures[CreatureHitID + 32].Alive == 1)
+                return 4;
+            return -1;
+            break; 
+        case Row_2:
+            if(creatures[CreatureHitID + 8].Alive == 1)
+                return 1;
+            if(creatures[CreatureHitID + 16].Alive == 1)
+                return 2;
+            if(creatures[CreatureHitID + 24].Alive == 1)
+                return 3;
+            return -1;
+            break; 
+        case Row_3:
+            if(creatures[CreatureHitID + 8].Alive == 1)
+                return 1;
+            if(creatures[CreatureHitID + 16].Alive == 1)
+                return 2;
+        case Row_4:
+            if(creatures[CreatureHitID + 8].Alive == 1)
+                return 1;
+            return -1;
+            break;   
+        default:
+            return -1;
+            break;   
+    }
+}
+
+void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, 
+                                 unsigned char CreatureHitID,
+                                 creature_t* creatures)
+{
+    unsigned char StepDifference=0; 
+
+    if(CreatureHitID < NUMB_OF_COLUMNS){
+
+        StepDifference = xCheckCreatureBehindAlive(creatures,
+                                                   CreatureHitID,
+                                                   Row_1);
+        if(StepDifference>0)
+            FrontierCreaturesID[CreatureHitID] += 8 * StepDifference;
+        else 
+            FrontierCreaturesID[CreatureHitID] = -1;
+    }
+    else if(CreatureHitID < NUMB_OF_COLUMNS*2){
+        StepDifference = xCheckCreatureBehindAlive(creatures,
+                                                   CreatureHitID,
+                                                   Row_2);
+        if(StepDifference>0)
+            FrontierCreaturesID[CreatureHitID - 8] += 8 * StepDifference;
+        else 
+            FrontierCreaturesID[CreatureHitID - 8] = -1;
+    }
+    else if(CreatureHitID < NUMB_OF_COLUMNS*3){
+        StepDifference = xCheckCreatureBehindAlive(creatures,
+                                                   CreatureHitID,
+                                                   Row_3);
+        if(StepDifference>0)
+            FrontierCreaturesID[CreatureHitID -16] += 8 * StepDifference;
+        else 
+            FrontierCreaturesID[CreatureHitID -16] = -1;
+    }
+    else if(CreatureHitID < NUMB_OF_COLUMNS*4){
+        StepDifference = xCheckCreatureBehindAlive(creatures,
+                                                   CreatureHitID,
+                                                   Row_4);
+        if(StepDifference>0)
+            FrontierCreaturesID[CreatureHitID - 24] += 8 * StepDifference;
+        else 
+            FrontierCreaturesID[CreatureHitID - 24] = -1;
+    }
+    else{
+        FrontierCreaturesID[CreatureHitID - 32] = -1;
+    }
+
+
+    printf("\nHIT: %d\t", CreatureHitID);
+    printf("Frontier: ");
+    for(int i=0;i<8;++i){
+        printf(" %d |", FrontierCreaturesID[i]);
+    }
+    printf("\n");
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
@@ -396,6 +489,7 @@ void vCreateCreaturesBullet(creature_t* creatures,
 {
     signed short CreatureChoiceID = 0;
     xChooseShootingCreature(FrontierCreaturesID, creatures, &CreatureChoiceID);
+    printf("Chose to shoot: %d\n", CreatureChoiceID);
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 

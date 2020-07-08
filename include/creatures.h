@@ -103,7 +103,11 @@ typedef struct creature_t{
 
 creature_t* CreateCreatures();
 void vAssignFrontierCreatures(signed short FrontierCreaturesID[8]);
-void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID);
+void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, 
+                                 unsigned char CreatureHitID,
+                                 creature_t* creatures);
+
+unsigned char xCheckKilledCreatureWithinFrontier(unsigned char CreatureCollisionID, signed short* FrontierCreaturesID);
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x_pos,
