@@ -11,6 +11,7 @@
 
 #define CREATURE_SPEED 10
 #define CREATURE_BULLET_SPEED 5
+#define CREAT_BULLET_LENGTH 10
 #define CREAT_BULLET_THICKNESS 3
 
 #define CREATURE_X_POS SCREEN_WIDTH*4/8
@@ -107,8 +108,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned cha
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x_pos,
                                      signed short bullet_y_pos,
-                                     H_Movement_t Direction,
-                                     signed short* FrontierCreaturesID);
+                                     H_Movement_t Direction);
 
 unsigned char xCheckDirectionChange(H_Movement_t* LastDirection, H_Movement_t CurrentHorizontalDirection);
 void vMoveCreaturesHorizontal(creature_t* creature, H_Movement_t* DIRECTION);

@@ -41,7 +41,8 @@ void CreateShipBullet(ship_t* ship);
 BunkerCollisionStatus_t* CreateBunkerCollisionStatus();
 
 unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos);
-
+unsigned char xCheckBullet2BulletCollision(signed short ship_bxpos, signed short ship_bypos,
+                                           signed short creatures_bxpos, signed short creatures_bypos);
 void vIncrementShipLeft(ship_t* ship);
 void vIncrementShipRight(ship_t* ship);
 

@@ -144,6 +144,8 @@ typedef struct PlayerBuffer_t{
     unsigned short Level;
     unsigned short HiScore;
     unsigned short Score;
+
+    unsigned int NewLivesAddedThreshold;
     unsigned short FreshGame;
     SemaphoreHandle_t lock;
 }PlayerBuffer_t;
@@ -180,7 +182,7 @@ typedef struct LevelModifiersBuffer_t{
 static LevelModifiersBuffer_t LevelModifiersBuffer = { 0 };
 
 typedef struct PausedGameInfoBuffer_t{
-    PausedGameActions_t PausedGameActions;
+    SelectedPausedGameOption_t SelectedPausedGameOption;
     SemaphoreHandle_t lock;
 }PausedGameInfoBuffer_t;
 static PausedGameInfoBuffer_t PausedGameInfoBuffer = { 0 };
@@ -343,6 +345,7 @@ void vSetPlayersInfoBufferValues()
         PlayerInfoBuffer.LivesLeft = 3;
         PlayerInfoBuffer.Level = 1;    
         PlayerInfoBuffer.FreshGame=1;
+        PlayerInfoBuffer.NewLivesAddedThreshold=INITIAL_POINTS_THRESHOLD;
 
     xSemaphoreGive(PlayerInfoBuffer.lock);
 }
@@ -434,7 +437,7 @@ void vSetPausedGameInfoBufferValues()
 {
     xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY);
     
-        PausedGameInfoBuffer.PausedGameActions=RemainPaused;
+        PausedGameInfoBuffer.SelectedPausedGameOption = Resume;
 
     xSemaphoreGive(PausedGameInfoBuffer.lock);
 }
@@ -489,10 +492,17 @@ void vSetAnimationsBufferValues()
 
 void vPrepareGameValues(unsigned short Level, unsigned short Score)
 { 
-    PlayerInfoBuffer.Score=Score;
-    PlayerInfoBuffer.Level=Level;
-    PlayerInfoBuffer.FreshGame=0;
-    PlayerInfoBuffer.LivesLeft=3;
+    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        PlayerInfoBuffer.Score=Score;
+        PlayerInfoBuffer.Level=Level;
+        PlayerInfoBuffer.FreshGame=0;
+        if (Score == 0){
+            PlayerInfoBuffer.NewLivesAddedThreshold = INITIAL_POINTS_THRESHOLD;
+            PlayerInfoBuffer.LivesLeft=3;
+        }
+
+        xSemaphoreGive(PlayerInfoBuffer.lock);
+    }
 }
 
 void vUpdatePlayerScoreCreatureKilled(unsigned char CreatureID)
@@ -1077,8 +1087,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
     while(1){
         uint32_t CreatureCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &CreatureCollisionID, portMAX_DELAY)==pdTRUE){
-            if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){
-                vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
+            if(xSemaphoreTake(CreaturesBuffer.lock, portMAX_DELAY)==pdTRUE){ vKillCreature(&CreaturesBuffer.Creatures[CreatureCollisionID],
                               &CreaturesBuffer.NumbOfAliveCreatures);
                 vUpdateFrontierCreaturesIDs(CreaturesBuffer.FrontierCreaturesID,
                                             CreatureCollisionID);
@@ -1169,6 +1178,7 @@ void vTaskShipBulletControl(void *pvParameters)
     static unsigned char BunkerCollisionFlag=0;
     static signed char CreatureCollisionFlag=0;
     static unsigned char SaucerCollisionFlag=0;
+    static unsigned char ShipBulletwCreatureBulletCollisionFlag=0;
 
     while(1){
         uint32_t BulletLaunchSignal;
@@ -1180,6 +1190,13 @@ void vTaskShipBulletControl(void *pvParameters)
                         if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
                             vUpdateShipBulletPos(ShipBuffer.Ship);
 
+
+                            if(CreaturesBuffer.BulletAliveFlag==1)
+                                ShipBulletwCreatureBulletCollisionFlag=xCheckBullet2BulletCollision(ShipBuffer.Ship->bullet->x_pos,
+                                                                                                    ShipBuffer.Ship->bullet->y_pos,
+                                                                                                    CreaturesBuffer.CreaturesBullet.x_pos,
+                                                                                                    CreaturesBuffer.CreaturesBullet.y_pos);
+
                             BunkerCollisionFlag=xCheckBunkersCollision(ShipBuffer.Ship->bullet->x_pos, 
                                                                        ShipBuffer.Ship->bullet->y_pos,
                                                                        (*BunkersBuffer.Bunkers));
@@ -1190,8 +1207,7 @@ void vTaskShipBulletControl(void *pvParameters)
                             CreatureCollisionFlag=xCheckCreaturesCollision(CreaturesBuffer.Creatures,
                                                                            ShipBuffer.Ship->bullet->x_pos,
                                                                            ShipBuffer.Ship->bullet->y_pos,
-                                                                           CreaturesBuffer.HorizontalDirection,
-                                                                           CreaturesBuffer.FrontierCreaturesID);
+                                                                           CreaturesBuffer.HorizontalDirection);
 
                             if(SaucerBuffer.SaucerAppearsFlag && SaucerBuffer.SaucerHitFlag==0){
                                 SaucerCollisionFlag=xCheckSaucerCollision(SaucerBuffer.saucer,
@@ -1200,7 +1216,9 @@ void vTaskShipBulletControl(void *pvParameters)
                                                                           ShipBuffer.Ship->bullet->y_pos);
                             }
 
-                            if(SaucerCollisionFlag || BunkerCollisionFlag || TopWallCollisionFlag || (CreatureCollisionFlag >=0)){  
+                            if(SaucerCollisionFlag || BunkerCollisionFlag || TopWallCollisionFlag || 
+                              (CreatureCollisionFlag >=0) || ShipBulletwCreatureBulletCollisionFlag){
+
                                 ShipBuffer.Ship->bullet->BulletAliveFlag=0;
                                 ShipBuffer.BulletCrashed=1;
 
@@ -1217,6 +1235,10 @@ void vTaskShipBulletControl(void *pvParameters)
                                     vTaskResume(SaucerShotControlTask);
                                     xTaskNotify(SaucerShotControlTask, (uint32_t)SaucerCollisionFlag, eSetValueWithOverwrite);
                                     SaucerCollisionFlag=0;
+                                }
+                                else if(ShipBulletwCreatureBulletCollisionFlag){
+                                    CreaturesBuffer.BulletAliveFlag=0;
+                                    ShipBulletwCreatureBulletCollisionFlag=0;
                                 }
                             }
 
@@ -1511,7 +1533,7 @@ void vControlLivesRedAnimation()
 {
     const TickType_t LivesAnimationsTime = 1200;
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
-        if(AnimationsBuffer.LivesCondition==LivesLost && AnimationsBuffer.LivesTimerSet==0){
+        if((AnimationsBuffer.LivesCondition==LivesLost || AnimationsBuffer.LivesCondition==LivesGained) && AnimationsBuffer.LivesTimerSet==0){
             AnimationsBuffer.LivesColorRedTimer = xTaskGetTickCount();
             AnimationsBuffer.LivesTimerSet=1;
             xSemaphoreGive(AnimationsBuffer.lock);
@@ -1546,6 +1568,18 @@ void vControlCreaturesShotAnimation()
             xSemaphoreGive(AnimationsBuffer.lock);
         }
         xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
+void vControlNewLivesAddition()
+{
+    if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
+        if(PlayerInfoBuffer.Level < 3 && PlayerInfoBuffer.Score >= PlayerInfoBuffer.NewLivesAddedThreshold) {
+            PlayerInfoBuffer.LivesLeft++; 
+            PlayerInfoBuffer.NewLivesAddedThreshold+=PlayerInfoBuffer.NewLivesAddedThreshold;
+            AnimationsBuffer.LivesCondition = LivesGained;
+        }
+        xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 }
 
@@ -1672,6 +1706,8 @@ void vTaskPlayingGame(void *pvParameters)
         vControlCreaturesShotAnimation();
         vControlSaucerShotAnimation();
 
+        vControlNewLivesAddition();
+
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
@@ -1709,56 +1745,72 @@ void vTaskPlayingGame(void *pvParameters)
 
 void vDrawInstructionsPausedGame()
 {
-    char QuitChar[20];
-    int QuitCharWidth=0;
+    char RestartChar[20];
+    int RestartCharWidth=0;
 
-    char ResumeChar[20];
+    char ResumeChar[30];
     int ResumeCharWidth=0;
 
-    sprintf(ResumeChar,"[R]esume");
-    if(!tumGetTextSize((char *)ResumeChar,&ResumeCharWidth, NULL)){
-                    checkDraw(tumDrawText(ResumeChar,
-                                          SCREEN_WIDTH*2/4-ResumeCharWidth/2,
-                                          SCREEN_HEIGHT*50/100 - DEFAULT_FONT_SIZE/2,
-                                          White),
-                                          __FUNCTION__);
-    }
+    if(xSemaphoreTake(PausedGameInfoBuffer.lock, 0)==pdTRUE){
+        sprintf(ResumeChar,"Resume Game");
+        if(!tumGetTextSize((char *)ResumeChar,&ResumeCharWidth, NULL)){
+                        checkDraw(tumDrawText(ResumeChar,
+                                              SCREEN_WIDTH*2/4-ResumeCharWidth/2,
+                                              SCREEN_HEIGHT*50/100 - DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(PausedGameInfoBuffer.SelectedPausedGameOption, Resume)),
+                                              __FUNCTION__);
+        }
 
-    sprintf(QuitChar,"[Q]uit");
-    if(!tumGetTextSize((char *)QuitChar,&QuitCharWidth, NULL)){
-                    checkDraw(tumDrawText(QuitChar,
-                                          SCREEN_WIDTH*2/4-QuitCharWidth/2,
-                                          SCREEN_HEIGHT*65/100 - DEFAULT_FONT_SIZE/2,
-                                          White),
-                                          __FUNCTION__);
+        sprintf(RestartChar,"Restart Game");
+        if(!tumGetTextSize((char *)RestartChar,&RestartCharWidth, NULL)){
+                        checkDraw(tumDrawText(RestartChar,
+                                              SCREEN_WIDTH*2/4-RestartCharWidth/2,
+                                              SCREEN_HEIGHT*65/100 - DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(PausedGameInfoBuffer.SelectedPausedGameOption, RestartReset)),
+                                              __FUNCTION__);
+        }
+        xSemaphoreGive(PausedGameInfoBuffer.lock);
     }
 }
 
-unsigned char xCheckResumePressed()
+void  xCheckPauseSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
+                                unsigned char* DOWN_DEBOUNCE_STATE)
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
-        if (buttons.buttons[KEYCODE(R)]){
-            xSemaphoreGive(buttons.lock);
-            if(xSemaphoreTake(PausedGameInfoBuffer.lock, 0)==pdTRUE){
-                PausedGameInfoBuffer.PausedGameActions = ResumeGame;
-                xSemaphoreGive(PausedGameInfoBuffer.lock);
-            }
-            return 1;
-        }              
-        xSemaphoreGive(buttons.lock);
-        return 0;
-    }
-    return 0;
-}
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 
+        if (buttons.buttons[KEYCODE(DOWN)]) {
+            if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
+                if(xSemaphoreTake(PausedGameInfoBuffer.lock,0)==pdTRUE){  
+                    vDownPausedSelection(&PausedGameInfoBuffer.SelectedPausedGameOption);
+                    xSemaphoreGive(PausedGameInfoBuffer.lock);
+                }
+        }                            
+        else if (buttons.buttons[KEYCODE(UP)]) { 
+            if(buttons.buttons[KEYCODE(UP)]!=(*UP_DEBOUNCE_STATE))
+                if(xSemaphoreTake(PausedGameInfoBuffer.lock,0)==pdTRUE){  
+                    vUpPausedSelection(&PausedGameInfoBuffer.SelectedPausedGameOption);
+                    xSemaphoreGive(PausedGameInfoBuffer.lock);
+                }
+        }   
+
+        (*UP_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(UP)];
+        (*DOWN_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(DOWN)];
+        xSemaphoreGive(buttons.lock);                                                                                                                                                                
+    }   
+}
 void vTaskPausedGame(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
+    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char DOWN_DEBOUNCE_STATE = 0;
+
     while(1){
         xGetButtonInput();
-        if(xCheckResumePressed())
+        xCheckPauseSelectionChange(&UP_DEBOUNCE_STATE, 
+                                  &DOWN_DEBOUNCE_STATE);
+        if(xCheckEnterPressed())
             vHandleStateMachineActivation();
 
         if(DrawSignal) 
@@ -1961,12 +2013,9 @@ void vSwapBuffers(void *pvParameters)
 }
 void vHandleNextLevelStateSM()
 {
-    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
         vPrepareGameValues(PlayerInfoBuffer.Level+1, PlayerInfoBuffer.Score);
-        xSemaphoreGive(PlayerInfoBuffer.lock);
         if(StateQueue)
             xQueueSend(StateQueue,&PlayingStateSignal, 0);
-    }
 }
 void vHandleGameOverStateSM()
 {
@@ -1974,18 +2023,18 @@ void vHandleGameOverStateSM()
         switch(GameOverInfoBuffer.SelectedGameOverOption){
             case PlayAgain:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
+                vPrepareGameValues(1,0);
                 if(StateQueue)
-                    if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                        vPrepareGameValues(1,0);
-                        xSemaphoreGive(PlayerInfoBuffer.lock);
-                    }
                     xQueueSend(StateQueue,&MainMenuStateSignal, 0);
+                break; 
 
             case Quit:
-            default:
                 xSemaphoreGive(GameOverInfoBuffer.lock);
                 exit(EXIT_SUCCESS);
-               break; 
+                break; 
+            default:
+                xSemaphoreGive(GameOverInfoBuffer.lock);
+                break; 
         }
         xSemaphoreGive(GameOverInfoBuffer.lock);
     }
@@ -1993,13 +2042,18 @@ void vHandleGameOverStateSM()
 void vHandlePausedGameStateSM()
 {
     if(xSemaphoreTake(PausedGameInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-        switch(PausedGameInfoBuffer.PausedGameActions){
-            case ResumeGame:
+        switch(PausedGameInfoBuffer.SelectedPausedGameOption){
+            case Resume:
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
                 if(StateQueue)
                     xQueueSend(StateQueue,&PlayingStateSignal, 0);
-
-            case RemainPaused:
+                break; 
+            case RestartReset:
+                xSemaphoreGive(PausedGameInfoBuffer.lock);
+                vPrepareGameValues(1,0);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&ResetGameStateSignal, 0);
+                break; 
             default:
                 xSemaphoreGive(PausedGameInfoBuffer.lock);
                break; 
@@ -2025,13 +2079,16 @@ void vHandlePlayingGameStateSM()
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if(StateQueue)
                     xQueueSend(StateQueue,&NextLevelStateSignal, 0);
+                break;
             case ResetGameAction:
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if (StateQueue)
                     xQueueSend(StateQueue,&ResetGameStateSignal, 0);
+                break;
             case NoAction:
             default:
-               break;
+                xSemaphoreGive(OutsideGameActionsBuffer.lock);
+                break;
         }
     }
 }

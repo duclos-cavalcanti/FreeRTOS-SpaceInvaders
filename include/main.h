@@ -1,6 +1,9 @@
 #ifndef __main_H__
 #define __main_H__
 
+#define INITIAL_POINTS_THRESHOLD 1080
+
+
 #define PLAYERSHIP_HEIGHT 10
 #define PLAYERSHIP_WIDTH 30
 #define PLAYERSHIP_Y_BEGIN SCREEN_HEIGHT*90/100
@@ -63,10 +66,10 @@ typedef enum PlayerOutsideGameActions_t{
     ResetGameAction
 }PlayerOutsideGameActions_t;
 
-typedef enum PausedGameActions_t{
-    RemainPaused,
-    ResumeGame
-}PausedGameActions_t;
+typedef enum SelectedPausedGameOption_t{
+    Resume,
+    RestartReset
+}SelectedPausedGameOption_t;
 
 typedef enum SelectedGameOverOption_t{
     PlayAgain,
@@ -75,7 +78,8 @@ typedef enum SelectedGameOverOption_t{
 
 typedef enum LivesAnimation_t{
     LivesIntact,
-    LivesLost
+    LivesLost,
+    LivesGained
 }LivesAnimation_t;
 
 void vHandleStateMachineActivation();

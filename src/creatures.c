@@ -144,19 +144,16 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
 signed char xCheckCreaturesCollision(creature_t* creatures,
                                      signed short bullet_x_pos,
                                      signed short bullet_y_pos,
-                                     H_Movement_t Direction,
-                                     signed short* FrontierCreaturesID)
+                                     H_Movement_t Direction)
 {   
-    signed  char CreatureID=0;
     signed  char CreatureCollisionID=0;
 
-    for(int i=0;i<NUMB_OF_COLUMNS;++i){ 
-        CreatureID=FrontierCreaturesID[i];
-        if(CreatureID>=0){
+    for(int i=0;i<NUMB_OF_CREATURES;++i){ 
+        if(creatures[i].Alive == 1){
             CreatureCollisionID=xCheckSingleCreatureCollision(bullet_x_pos,
                                                               bullet_y_pos,
                                                               Direction,
-                                                              &creatures[CreatureID]);
+                                                              &creatures[i]);
 
             if(CreatureCollisionID>=0) 
                 return CreatureCollisionID;
@@ -428,7 +425,7 @@ void vDrawCreaturesBullet(bullet_t* CreatureBullet)
     checkDraw(tumDrawLine(CreatureBullet->x_pos, 
                           CreatureBullet->y_pos,
                           CreatureBullet->x_pos, 
-                          CreatureBullet->y_pos+SHIP_BULLET_LENGTH,
+                          CreatureBullet->y_pos+CREAT_BULLET_LENGTH,
                           CREAT_BULLET_THICKNESS,
                           White),
                           __FUNCTION__);

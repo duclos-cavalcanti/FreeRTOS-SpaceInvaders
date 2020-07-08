@@ -86,10 +86,35 @@ void vUpGameOverSelection(SelectedGameOverOption_t* CurrentSelect)
     }
 }
 
+void vDownPausedSelection(SelectedPausedGameOption_t* CurrentSelect)
+{
+    switch(*CurrentSelect){
+        case Resume:
+            (*CurrentSelect)++;
+            break;
+        case RestartReset:
+           (*CurrentSelect) = Resume;
+            break;
+    }
+}
+
+void vUpPausedSelection(SelectedPausedGameOption_t* CurrentSelect)
+{
+    switch(*CurrentSelect){
+        case RestartReset:
+            (*CurrentSelect)--;
+            break;
+        case Resume:
+           (*CurrentSelect) = RestartReset;
+            break;
+    }
+}
 unsigned int xFetchAnimationColor(unsigned char AnimationCondition)
 {
     if(AnimationCondition == LivesLost)
         return Red;
-    else 
+    else if(AnimationCondition == LivesGained)
+        return Green;
+    else
         return White;
 }

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "ship.h"
+#include "creatures.h"
 #include "main.h"
 #include "bunkers.h"
 
@@ -69,5 +70,22 @@ unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos)
 {
     if(b_ypos<=10) return 1;
     else return 0;
+}
+
+unsigned char xCheckBullet2BulletCollision(signed short ship_bxpos, signed short ship_bypos,
+                                           signed short creatures_bxpos, signed short creatures_bypos)
+{
+    signed short Creature_bullet_LEFT_LIMIT = creatures_bxpos - CREAT_BULLET_THICKNESS; 
+    signed short Creature_bullet_RIGHT_LIMIT = creatures_bxpos + CREAT_BULLET_THICKNESS; 
+    signed short Creature_bullet_TOP_LIMIT = creatures_bypos + CREAT_BULLET_LENGTH;
+    signed short Creature_bullet_BOTTOM_LIMIT = creatures_bypos;
+
+    if(ship_bxpos <= Creature_bullet_RIGHT_LIMIT && ship_bxpos >= Creature_bullet_LEFT_LIMIT){
+        if(ship_bypos >= Creature_bullet_TOP_LIMIT && ship_bypos <= Creature_bullet_BOTTOM_LIMIT) 
+            return 1;
+       else
+            return 0; 
+    }
+    return 0;
 }
 
