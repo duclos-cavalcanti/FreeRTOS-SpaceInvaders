@@ -100,7 +100,7 @@ unsigned char xCheckKilledCreatureWithinFrontier(unsigned char CreatureCollision
     return 0;
 }
 
-unsigned char xCheckCreatureBehindAlive(creature_t* creatures, 
+signed char xCheckCreatureBehindAlive(creature_t* creatures, 
                                         unsigned char CreatureHitID,
                                         Rows_t Row)
 {
@@ -130,6 +130,8 @@ unsigned char xCheckCreatureBehindAlive(creature_t* creatures,
                 return 1;
             if(creatures[CreatureHitID + 16].Alive == 1)
                 return 2;
+            return -1;
+            break;   
         case Row_4:
             if(creatures[CreatureHitID + 8].Alive == 1)
                 return 1;
@@ -145,7 +147,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
                                  unsigned char CreatureHitID,
                                  creature_t* creatures)
 {
-    unsigned char StepDifference=0; 
+    signed char StepDifference=0; 
 
     if(CreatureHitID < NUMB_OF_COLUMNS){
 
@@ -179,6 +181,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_4);
+        printf("StepDifference: %d\n", StepDifference);
         if(StepDifference>0)
             FrontierCreaturesID[CreatureHitID - 24] += 8 * StepDifference;
         else 
@@ -187,7 +190,6 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
     else{
         FrontierCreaturesID[CreatureHitID - 32] = -1;
     }
-
 
     printf("\nHIT: %d\t", CreatureHitID);
     printf("Frontier: ");
@@ -258,7 +260,7 @@ unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
         CreatureID=FrontierCreaturesID[i];
         if(CreatureID>=0){
             BunkerCollisionID=xCheckSingleCreatureBunkerCollision(creatures[CreatureID].x_pos,
-                                                                  creatures[CreatureID].y_pos + CREATURE_WIDTH/2,
+                                                                  creatures[CreatureID].y_pos + CREATURE_HEIGHT/2,
                                                                   Bunkers);
 
 
