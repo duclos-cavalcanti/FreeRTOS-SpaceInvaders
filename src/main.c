@@ -455,11 +455,22 @@ void vSetLevelModifiersValues()
 {
     xSemaphoreTake(LevelModifiersBuffer.lock, portMAX_DELAY);
         xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
-            LevelModifiersBuffer.NumberOfSpeedChanges = 0;
-            LevelModifiersBuffer.SpeedChangeCount = 5 - 1 * (PlayerInfoBuffer.Level - 1);
-            LevelModifiersBuffer.MovingPeriod = 700 - 50*(PlayerInfoBuffer.Level - 1);
-            LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
-            LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
+
+            if(PlayerInfoBuffer.Level<3){
+                LevelModifiersBuffer.NumberOfSpeedChanges = 0;
+                LevelModifiersBuffer.SpeedChangeCount = 5 - 1 * (PlayerInfoBuffer.Level - 1);
+                LevelModifiersBuffer.MovingPeriod = 700 - 50*(PlayerInfoBuffer.Level - 1);
+                LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
+                LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
+            }
+            else {
+                LevelModifiersBuffer.NumberOfSpeedChanges = 0;
+                LevelModifiersBuffer.SpeedChangeCount = 4;
+                LevelModifiersBuffer.MovingPeriod = 600;
+                LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
+                LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
+            }
+
         xSemaphoreGive(PlayerInfoBuffer.lock);
     xSemaphoreGive(LevelModifiersBuffer.lock);
 }
