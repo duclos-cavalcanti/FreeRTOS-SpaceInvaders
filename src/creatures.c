@@ -181,7 +181,6 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_4);
-        printf("StepDifference: %d\n", StepDifference);
         if(StepDifference>0)
             FrontierCreaturesID[CreatureHitID - 24] += 8 * StepDifference;
         else 

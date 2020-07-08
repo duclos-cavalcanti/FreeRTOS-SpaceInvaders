@@ -1597,7 +1597,7 @@ void vControlCreaturesShotAnimation()
 void vControlNewLivesAddition()
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
-        if(PlayerInfoBuffer.LivesLeft < 3 && PlayerInfoBuffer.Score >= PlayerInfoBuffer.NewLivesAddedThreshold) {
+        if(PlayerInfoBuffer.LivesLeft < 3 && PlayerInfoBuffer.Score >= PlayerInfoBuffer.NewLivesAddedThreshold){
             PlayerInfoBuffer.LivesLeft++; 
             PlayerInfoBuffer.NewLivesAddedThreshold+=PlayerInfoBuffer.NewLivesAddedThreshold;
             AnimationsBuffer.LivesCondition = LivesGained;
