@@ -160,7 +160,7 @@ static BunkersBuffer_t BunkersBuffer = { 0 };
 
 typedef struct CreaturesBuffer_t{
     creature_t* Creatures;
-    signed short* FrontierCreaturesID;
+    signed short FrontierCreaturesID[8];
     bullet_t CreaturesBullet;
     unsigned short BulletAliveFlag;
     unsigned short NumbOfAliveCreatures;   
@@ -405,7 +405,7 @@ void vSetCreaturesBufferValues()
         CreaturesBuffer.NumbOfAliveCreatures=NUMB_OF_CREATURES;
 
         CreaturesBuffer.Creatures = CreateCreatures();
-        CreaturesBuffer.FrontierCreaturesID = vAssignFrontierCreatures(CreaturesBuffer.Creatures);
+        vAssignFrontierCreatures(CreaturesBuffer.FrontierCreaturesID);
         vAssignCreaturesImages(CreaturesBuffer.Creatures,
                                CreaturesBuffer.ImagesCatalog);
 
@@ -1574,7 +1574,7 @@ void vControlCreaturesShotAnimation()
 void vControlNewLivesAddition()
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
-        if(PlayerInfoBuffer.Level < 3 && PlayerInfoBuffer.Score >= PlayerInfoBuffer.NewLivesAddedThreshold) {
+        if(PlayerInfoBuffer.LivesLeft < 3 && PlayerInfoBuffer.Score >= PlayerInfoBuffer.NewLivesAddedThreshold) {
             PlayerInfoBuffer.LivesLeft++; 
             PlayerInfoBuffer.NewLivesAddedThreshold+=PlayerInfoBuffer.NewLivesAddedThreshold;
             AnimationsBuffer.LivesCondition = LivesGained;

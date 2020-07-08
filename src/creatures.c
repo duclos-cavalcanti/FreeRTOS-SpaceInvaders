@@ -83,18 +83,10 @@ creature_t* CreateCreatures()
     return CreatureArray;
 }
 
-signed short* vAssignFrontierCreatures(creature_t* creatures)
+void vAssignFrontierCreatures(signed short FrontierCreaturesID[8])
 {
-   signed short* FrontierCreaturesID = calloc(8,sizeof(signed short));
-   if(!FrontierCreaturesID){
-       fprintf(stderr,"Unable to create Frontier creatures ID.");
-       exit(EXIT_FAILURE);
-   }
-
    for(int i=0;i<8;i++)
        FrontierCreaturesID[i]=i;
-
-   return FrontierCreaturesID;
 }
 
 void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID)
@@ -193,14 +185,14 @@ unsigned char xCheckSingleCreatureReachedBottom(creature_t creature)
 }
 
 unsigned char xCheckFrontierReachedBottom(creature_t* creatures,
-                                  signed short* FrontierCreaturesID)
+                                          signed short* FrontierCreaturesID)
 {
     signed short CreatureID=0;
     unsigned short CreatureReachedBottomID = 0;
 
     for(int i=0;i<NUMB_OF_COLUMNS;++i){
         CreatureID = FrontierCreaturesID[i];
-        if(CreatureID > 0){
+        if(CreatureID >= 0 && creatures[CreatureID].Alive == 1){
             CreatureReachedBottomID = xCheckSingleCreatureReachedBottom(creatures[CreatureID]);
 
             if(CreatureReachedBottomID>0)
@@ -379,16 +371,31 @@ bullet_t CreateCreatureSingleBullet(creature_t* creature)
 
     return CreatureBullet;
 }
+
+void xChooseShootingCreature(signed short* FrontierCreaturesID, creature_t* creatures, signed short* Choice)
+{
+    unsigned short i = 0;
+    unsigned char LeaveLoop=0;
+    signed short PreliminaryChoice=0;
+
+    while(LeaveLoop == 0){
+        PreliminaryChoice = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
+        if(PreliminaryChoice >=0 && creatures[PreliminaryChoice].Alive == 1){
+            (*Choice) = PreliminaryChoice;
+            LeaveLoop = 1;
+        }
+        else
+            ++i;
+    }
+}
+
 void vCreateCreaturesBullet(creature_t* creatures, 
                             bullet_t* CreaturesBullet,
                             signed short* FrontierCreaturesID)
 
 {
-    signed int CreatureChoiceID = -1;
-    while(CreatureChoiceID<0){
-        CreatureChoiceID = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
-    }
-
+    signed short CreatureChoiceID = 0;
+    xChooseShootingCreature(FrontierCreaturesID, creatures, &CreatureChoiceID);
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 

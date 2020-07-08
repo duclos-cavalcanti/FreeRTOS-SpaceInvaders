@@ -102,7 +102,7 @@ typedef struct creature_t{
 
 
 creature_t* CreateCreatures();
-signed short*  vAssignFrontierCreatures(creature_t* creatures);
+void vAssignFrontierCreatures(signed short FrontierCreaturesID[8]);
 void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, unsigned char CreatureHitID);
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
