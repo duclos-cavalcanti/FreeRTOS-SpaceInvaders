@@ -18,7 +18,11 @@
 #include "TUM_Utils.h"
 #include "TUM_Font.h"
 
+/** AsyncIO related */
 #include "AsyncIO.h"
+#define UDP_BUFFER_SIZE 1024
+#define UDP_RECEIVE_PORT 1234
+#define UDP_TRANSMIT_PORT 1235
 
 #include "utilities.h"
 #include "main.h"
@@ -34,6 +38,7 @@
 #define FPS_AVERAGE_COUNT 50
 #define FPS_FONT "IBMPlexSans-Bold.ttf"
 
+
 static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainPlayingGameTask = NULL;
 static TaskHandle_t PausedGameTask = NULL;
@@ -48,6 +53,12 @@ static TaskHandle_t CreaturesBulletControlTask = NULL;
 static TaskHandle_t ShipShotControlTask = NULL;
 static TaskHandle_t SaucerActionControlTask = NULL;
 static TaskHandle_t SaucerShotControlTask = NULL;
+
+static TaskHandle_t UDPControlTask = NULL;
+aIO_handle_t UDP_SOC_RECEIVE = NULL;
+aIO_handle_t UDP_SOC_TRANSMIT = NULL;  
+static SemaphoreHandle_t HandleUDP = NULL;
+static QueueHandle_t NextKEYQueue = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
@@ -304,7 +315,7 @@ void vPlayDeadCreatureSound()
 }
 void vPlayBunkerShotSound()
 {
-    tumSoundPlaySample(f5);
+    tumSoundPlaySample(d5);
 }
 void vPlayBulletSound()
 {
@@ -2015,6 +2026,54 @@ void vTaskNextLevel(void *pvParameters)
     }
 }
 
+void UDPhandler(size_t read_size, char *buffer, void *args)
+{
+    OpponentCommands_t NextKEY = NONE;
+
+    BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken2 = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken3 = pdFALSE;
+
+if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) ==pdTRUE) {
+
+        char SendCommandFlag = 0;
+
+        if (strncmp(buffer, "INC", (read_size < 3) ? read_size : 3) ==0) {
+            NextKEY = INC;
+            SendCommandFlag = 1;
+        }
+        else if (strncmp(buffer, "DEC",(read_size < 3) ? read_size : 3) == 0) {
+            NextKEY = DEC;
+            SendCommandFlag = 1;
+        }
+
+        else if (strncmp(buffer, "NONE",(read_size < 4) ? read_size : 4) == 0) {
+            NextKEY = NONE;
+            SendCommandFlag = 1;
+        }
+
+        if (NextKEYQueue && SendCommandFlag) {
+            xQueueSendFromISR(NextKEYQueue, 
+                             (void *)&NextKEY,
+                             &xHigherPriorityTaskWoken2);
+        }
+        xSemaphoreGiveFromISR(HandleUDP, &xHigherPriorityTaskWoken3);
+
+
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 |
+                           xHigherPriorityTaskWoken2 |
+                           xHigherPriorityTaskWoken3);
+    }
+
+}
+
+void vTaskUDPControl(void *pvParameters)
+{
+    while(1){
+    
+    }
+}
+
 void vSwapBuffers(void *pvParameters)
 {
     TickType_t xLastWakeTime;
@@ -2526,6 +2585,24 @@ int main(int argc, char *argv[])
         goto err_animationsbuffer;
     }
 
+    if(xTaskCreate(vTaskUDPControl, "UDP Control Task", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 5, &UDPControlTask)!=pdPASS){
+         
+        PRINT_ERROR("Failed to create UDP Control Task.");
+        goto err_udpcontroltask;
+    }
+
+    HandleUDP = xSemaphoreCreateMutex();
+    if(!HandleUDP){
+        PRINT_ERROR("Could not create UDP Semaphore handle.");
+        goto err_udphandlesemaphore;
+    }
+
+    NextKEYQueue = xQueueCreate(1, sizeof(OpponentCommands_t));
+    if (!NextKEYQueue) {
+        exit(EXIT_FAILURE);
+    }
+
 
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
@@ -2542,10 +2619,16 @@ int main(int argc, char *argv[])
     vTaskSuspend(CreaturesBulletControlTask);
     vTaskSuspend(ShipShotControlTask);
     
+    vTaskSuspend(UDPControlTask);
+
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
+err_udphandlesemaphore:
+    vTaskDelete(UDPControlTask);
+err_udpcontroltask:
+    vSemaphoreDelete(AnimationsBuffer.lock);
 err_animationsbuffer:
     vTaskDelete(SaucerShotControlTask);
 err_saucershottask:

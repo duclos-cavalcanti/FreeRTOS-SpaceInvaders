@@ -22,6 +22,13 @@ typedef struct saucer_t{
     image_handle_t Image;
 }saucer_t;
 
+typedef enum OpponentCommands_t{
+    NONE,
+    INC=1,
+    DEC=-1
+}OpponentCommands_t;
+
+
 
 saucer_t* CreateSinglePlayerSaucer();
 
