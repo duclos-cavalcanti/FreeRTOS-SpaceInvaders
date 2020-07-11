@@ -44,7 +44,8 @@ typedef enum Rows_t{
 #define BEGIN MainMenuState
 typedef enum GameState_t{
     MainMenuState,
-    PlayingState,
+    SinglePlayingState,
+    MultiPlayingState,
     NextLevelState,
     PausedState,
     GameOverState,
@@ -89,4 +90,6 @@ typedef enum TypesOfNewGames_t{
 
 
 void vHandleStateMachineActivation();
+unsigned char xCheckUDPInput(signed short* SaucerX);
+void vPrepareImageSaucer(unsigned short* ImageIndex);
 #endif 

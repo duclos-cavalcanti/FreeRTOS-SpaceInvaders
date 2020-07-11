@@ -19,7 +19,7 @@ typedef struct saucer_t{
     signed short y_pos;
     signed short speed;
     
-    image_handle_t Image;
+    image_handle_t Images[2];
 }saucer_t;
 
 typedef enum OpponentCommands_t{
@@ -33,8 +33,9 @@ typedef enum OpponentCommands_t{
 saucer_t* CreateSinglePlayerSaucer();
 
 
+void vMoveSaucerLeft(saucer_t* saucer);
+void vMoveSaucerRight(saucer_t* saucer);
 void vMoveSaucerHorizontal(saucer_t* saucer, H_Movement_t* Direction);
-
 unsigned char xCheckSaucerCollision(saucer_t* saucer,
                                     H_Movement_t Direction,
                                     signed short b_xpos,
@@ -45,10 +46,6 @@ void vKillSaucer(unsigned char* SaucerHitFlag, unsigned char* SaucerAppearsFlag)
 void vRetrieveDeadSaucerXY(signed short* DeadSaucerX, signed short* DeadSaucerY, saucer_t* saucer);
 
 unsigned char xFetchSaucerValue();
-
-
-
-
 
 
 #endif

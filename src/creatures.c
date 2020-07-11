@@ -189,13 +189,6 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
     else{
         FrontierCreaturesID[CreatureHitID - 32] = -1;
     }
-
-    printf("\nHIT: %d\t", CreatureHitID);
-    printf("Frontier: ");
-    for(int i=0;i<8;++i){
-        printf(" %d |", FrontierCreaturesID[i]);
-    }
-    printf("\n");
 }
 
 signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bullet_y,
@@ -490,7 +483,6 @@ void vCreateCreaturesBullet(creature_t* creatures,
 {
     signed short CreatureChoiceID = 0;
     xChooseShootingCreature(FrontierCreaturesID, creatures, &CreatureChoiceID);
-    printf("Chose to shoot: %d\n", CreatureChoiceID);
     (*CreaturesBullet)=CreateCreatureSingleBullet(&creatures[CreatureChoiceID]);
 }
 
