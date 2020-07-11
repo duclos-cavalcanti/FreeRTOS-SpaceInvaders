@@ -1218,16 +1218,27 @@ void vSaucerScoreControl()
         xSemaphoreGive(PlayerInfoBuffer.lock);
     }
 }
+
+void vSuspendSaucerTasks()
+{
+    if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
+    if(UDPControlTask) vTaskSuspend(UDPControlTask);
+    if(SaucerAIControlTask) vTaskSuspend(SaucerAIControlTask);
+}
+
 void vTaskSaucerShotControl(void *pvParameters)
 {
     while(1){
         uint32_t SaucerCollisionID;
         if(xTaskNotifyWait(0x00, 0xffffffff, &SaucerCollisionID, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY)==pdTRUE){
+
                 vKillSaucer(&SaucerBuffer.SaucerHitFlag, &SaucerBuffer.SaucerAppearsFlag);
+                vSuspendSaucerTasks();
                 vSaucerScoreControl();
                 vPlayDeadCreatureSound();
                 vActivateSaucerShotAnimationState(SaucerBuffer.saucer);
+
                 xSemaphoreGive(SaucerBuffer.lock);
             }
        } 
@@ -1475,11 +1486,9 @@ void vTaskSaucerActionControl(void *pvParameters)
                     xPrevAppearanceTime = xTaskGetTickCount();
                 }
 
-            if(SaucerBuffer.SaucerAppearsFlag==1)
-                vMoveSaucerHorizontal(SaucerBuffer.saucer, &SaucerBuffer.Direction);
-
+                if(SaucerBuffer.SaucerAppearsFlag==1)
+                    vMoveSaucerHorizontal(SaucerBuffer.saucer, &SaucerBuffer.Direction);
             }
-        
             xSemaphoreGive(SaucerBuffer.lock);
         }
 
@@ -1492,14 +1501,48 @@ void vTaskSaucerAIControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t WakeRate = 15;
+    const TickType_t xSecondMeasure = 1000;
+
+    TickType_t xPrevAppearanceTime = xTaskGetTickCount();
+    TickType_t xPrevDisAppearanceTime = xTaskGetTickCount();
+    const TickType_t xDisappearancePeriod = 10*xSecondMeasure;
+    const TickType_t AppearancePeriod = 20*xSecondMeasure;
+
+    unsigned char AppearPeriodDone=1;
+    unsigned char DisAppearPeriodDone=0;
 
     vSetSaucerBufferValues();
 
     while(1){
         if(xSemaphoreTake(SaucerBuffer.lock,0)==pdTRUE){
-            SaucerBuffer.SaucerAppearsFlag=1;
+            if(SaucerBuffer.SaucerHitFlag==0){
+                if(AppearPeriodDone==1 && 
+                   DisAppearPeriodDone==0 && 
+                   xTaskGetTickCount() - xPrevDisAppearanceTime >= xDisappearancePeriod){
 
-            xCheckUDPInput(&SaucerBuffer.saucer->x_pos);
+                    AppearPeriodDone=0;
+                    DisAppearPeriodDone=1;
+                    SaucerBuffer.SaucerAppearsFlag = 1;
+                    xPrevAppearanceTime = xTaskGetTickCount();
+                }
+
+                if(AppearPeriodDone==0 &&
+                   DisAppearPeriodDone==1 && 
+                   xTaskGetTickCount() - xPrevAppearanceTime >= AppearancePeriod){
+
+                    AppearPeriodDone=1;
+                    DisAppearPeriodDone=0;
+                    SaucerBuffer.SaucerAppearsFlag = 0;
+                    xPrevDisAppearanceTime = xTaskGetTickCount();
+                }
+
+
+                if(SaucerBuffer.SaucerAppearsFlag==1){
+                    xCheckUDPInput(&SaucerBuffer.saucer->x_pos);
+                    xCheckAISaucerBorder(SaucerBuffer.saucer, SaucerBuffer.Direction);
+                }
+            }
+
             xSemaphoreGive(SaucerBuffer.lock);
         }
 
@@ -1786,7 +1829,7 @@ void vTaskPlayingGame(void *pvParameters)
             vHandleStateMachineActivation();
         
         xCheckShipMoved(&LatestShipX);
-        if(AIModeFlag)    
+        if(AIModeFlag && SaucerAppearsFlag==1)
             xQueueSend(ShipPosQueue, &LatestShipX, 0);
 
         if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
@@ -2140,7 +2183,8 @@ unsigned char xCheckUDPInput(signed short* SaucerX)
         vMoveSaucerRight(SaucerBuffer.saucer);
     }
     else if(CurrentKEY == DEC){
-        vMoveSaucerLeft(SaucerBuffer.saucer);
+        if(SaucerBuffer.saucer->x_pos > SAUCER_WIDTH/2)
+            vMoveSaucerLeft(SaucerBuffer.saucer);
     }
         
     return 0; 
@@ -2148,13 +2192,16 @@ unsigned char xCheckUDPInput(signed short* SaucerX)
 
 void vTaskUDPControl(void *pvParameters)
 {
+    const TickType_t UpdatePeriod=15;
+
     static char buffer[50];
     char *addr = NULL; // Loopback
     in_port_t UDPport = UDP_RECEIVE_PORT;
 
     signed short CurrentShipX=0;
+    unsigned char ShipBulletOnScreenFlag=0;
+    unsigned char LastShipBulletOnScreenFlagCondition=ShipBulletOnScreenFlag;
 
-    const TickType_t UpdatePeriod=15;
 
     UDP_SOC_RECEIVE = aIOOpenUDPSocket(addr, 
                                        UDPport,
@@ -2169,6 +2216,7 @@ void vTaskUDPControl(void *pvParameters)
 
         while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}
 
+            xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
             signed int RelativePosDifference = CurrentShipX - SaucerBuffer.saucer->x_pos > 0;
 
             if(RelativePosDifference>0){
@@ -2179,6 +2227,18 @@ void vTaskUDPControl(void *pvParameters)
 
 
             aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+
+            if(ShipBulletOnScreenFlag!=LastShipBulletOnScreenFlagCondition){
+                if(ShipBulletOnScreenFlag==1){
+                    sprintf(buffer, "ATTACKING"); 
+                }
+                else {
+                    sprintf(buffer, "PASSIVE"); 
+                }
+
+                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+                LastShipBulletOnScreenFlagCondition = ShipBulletOnScreenFlag;
+            }
     }
 }
 
@@ -2250,8 +2310,9 @@ void vHandlePausedGameStateSM()
                     }
                     else if(StateQueue && PlayerInfoBuffer.PlayerChosenMode==MultiPlayingState){
                         xSemaphoreGive(PlayerInfoBuffer.lock);
-                        xQueueSend(StateQueue,&SinglePlayingStateSignal, 0);
+                        xQueueSend(StateQueue,&MultiPlayingStateSignal, 0);
                     }
+                    xSemaphoreGive(PlayerInfoBuffer.lock);
                 }
                 break; 
             case RestartReset:
@@ -2441,6 +2502,7 @@ void vTaskStateMachine(void *pvParameters){
 
         initial_state:
             if (changed_state){
+                taskENTER_CRITICAL();
                 xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY);
 
                     switch (current_state){
@@ -2485,6 +2547,20 @@ void vTaskStateMachine(void *pvParameters){
                             if(MainPlayingGameTask) vTaskResume(MainPlayingGameTask);
                             break;
 
+                            case PausedState:
+
+                            xSemaphoreGive(GameStateBuffer.lock);
+                            if(UDPControlTask) vTaskSuspend(UDPControlTask);
+                            if(SaucerAIControlTask) vTaskSuspend(SaucerAIControlTask);
+                            if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
+                            if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
+                            if(MainPlayingGameTask) vTaskSuspend(MainPlayingGameTask);
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+                            if(GameOverTask) vTaskSuspend(GameOverTask);
+                            if(NextLevelTask) vTaskSuspend(NextLevelTask);
+                            if(PausedGameTask) vTaskResume(PausedGameTask);
+                            break;
+
                         case GameOverState:
 
                             xSemaphoreGive(GameStateBuffer.lock);
@@ -2524,7 +2600,7 @@ void vTaskStateMachine(void *pvParameters){
 
                     GameStateBuffer.GameState=current_state;
                     changed_state=0; //Resets changed state
-
+                    taskEXIT_CRITICAL();
             }
      }
 }

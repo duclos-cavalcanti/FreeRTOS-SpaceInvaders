@@ -41,6 +41,8 @@ unsigned char xCheckSaucerCollision(saucer_t* saucer,
                                     signed short b_xpos,
                                     signed short c_ypos);
 
+void xCheckAISaucerBorder(saucer_t* saucer, H_Movement_t CurrentDirection);
+
 
 void vKillSaucer(unsigned char* SaucerHitFlag, unsigned char* SaucerAppearsFlag);
 void vRetrieveDeadSaucerXY(signed short* DeadSaucerX, signed short* DeadSaucerY, saucer_t* saucer);

@@ -33,11 +33,11 @@ unsigned char xCheckSaucerCollision(saucer_t* saucer,
     signed short L_OFFSET = 0;
 
     if(Direction == RIGHT){
-        R_OFFSET = saucer->speed;    
+        R_OFFSET = saucer->speed/2;
         L_OFFSET = 0;
     }
     else{
-        L_OFFSET = saucer->speed;    
+        L_OFFSET = saucer->speed/2;   
         R_OFFSET = 0;
     }
     signed short LEFT_LIMIT = saucer->x_pos - SAUCER_WIDTH/2 - L_OFFSET;
@@ -79,6 +79,15 @@ H_Movement_t xCheckDirectionSaucer(saucer_t* saucer, H_Movement_t Direction)
         return xCheckSaucerLeftEdgeDistance(saucer);
 }
 
+void xCheckAISaucerBorder(saucer_t* saucer, H_Movement_t CurrentDirection)
+{
+    H_Movement_t LastDirection = CurrentDirection;
+    H_Movement_t NewDirection =xCheckSaucerRightEdgeDistance(saucer);
+    if(NewDirection!=LastDirection && LastDirection==RIGHT)
+        saucer->x_pos=0+SAUCER_WIDTH/2;
+    else if(NewDirection!=LastDirection && LastDirection==LEFT)
+        saucer->x_pos=SCREEN_WIDTH - SAUCER_WIDTH/2;
+}
 void vMoveSaucerRight(saucer_t* saucer)
 {
     saucer->x_pos+=saucer->speed;
