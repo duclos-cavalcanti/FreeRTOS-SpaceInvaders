@@ -101,6 +101,7 @@ static image_handle_t CreaturesHard_MenuScaled_1 = NULL;
 
 static image_handle_t CreatureShotAnimation = NULL;
 static image_handle_t SaucerShotAnimation = NULL;
+static image_handle_t WallShotAnimation = NULL;
 
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -222,14 +223,17 @@ typedef struct AnimationsBuffer_t{
     unsigned char CreatureShotAnimationTimerSet;
     signed short CreatureShotX;
     signed short CreatureShotY;
-
-    
     
     TickType_t SaucerShotAnimationTimer;
     unsigned char SaucerShotAnimationTimerSet;
     unsigned char SaucerShot;
     signed short SaucerShotX;
     signed short SaucerShotY;
+
+    TickType_t WallShotAnimationTimer;
+    unsigned char WallShotAnimationTimerSet;
+    unsigned char WallShot;
+    signed short WallShotX;
 
     SemaphoreHandle_t lock;
 }AnimationsBuffer_t;
@@ -502,6 +506,7 @@ void vSetAnimationsBufferValues()
 {
     CreatureShotAnimation = tumDrawLoadImage("../resources/creature_destroyed.bmp");
     SaucerShotAnimation = tumDrawLoadImage("../resources/saucer_destroyed.bmp");
+    WallShotAnimation = tumDrawLoadImage("../resources/ShipBulletTopDMGv2.bmp");
 
     xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY);
 
@@ -520,6 +525,12 @@ void vSetAnimationsBufferValues()
         AnimationsBuffer.SaucerShot=0;
         AnimationsBuffer.SaucerShotX=0;
         AnimationsBuffer.SaucerShotY=0;
+
+        AnimationsBuffer.WallShotAnimationTimer=0;
+        AnimationsBuffer.WallShotAnimationTimerSet=0;
+        AnimationsBuffer.WallShot=0;
+        AnimationsBuffer.WallShotX=0;
+
 
     xSemaphoreGive(AnimationsBuffer.lock);
 }
@@ -934,6 +945,18 @@ void vDrawSaucer()
         xSemaphoreGive(SaucerBuffer.lock);
     }
 }
+
+void vDrawWallShot()
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        checkDraw(tumDrawLoadedImage(WallShotAnimation, 
+                                     AnimationsBuffer.WallShotX - WALL_SHOT_ANIMATION_W/2,
+                                     40 - WALL_SHOT_ANIMATION_H/2),
+                                     __FUNCTION__);
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
 void vDrawCreatureDestruction()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
@@ -1197,6 +1220,14 @@ void vTaskBunkerShotControl(void *pvParameters)
     }
 
 }
+void vActivateWallShotAnimationState()
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock,portMAX_DELAY)==pdTRUE){
+        AnimationsBuffer.WallShotX=ShipBuffer.Ship->bullet->x_pos;
+        AnimationsBuffer.WallShot=1;
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
 void vActivateSaucerShotAnimationState(saucer_t* saucer)
 {
     signed short DeadSaucerX, DeadSaucerY;
@@ -1312,6 +1343,10 @@ void vTaskShipBulletControl(void *pvParameters)
                                 else if(ShipBulletwCreatureBulletCollisionFlag){
                                     CreaturesBuffer.BulletAliveFlag=0;
                                     ShipBulletwCreatureBulletCollisionFlag=0;
+                                }
+                                else if(TopWallCollisionFlag){
+                                    vActivateWallShotAnimationState(); 
+                                    TopWallCollisionFlag=0;
                                 }
                             }
 
@@ -1583,6 +1618,18 @@ void xRetrieveCreatureDestroyedAnimationFlag(unsigned char* CreatureDestroyedAni
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+void xRetrieveWallShotAnimationFlag(unsigned char* WallShotAnimationFlag)
+{
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        if(AnimationsBuffer.WallShot==1) 
+            (*WallShotAnimationFlag)=1;
+        else
+            (*WallShotAnimationFlag)=0;
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
 void xRetrieveSaucerAppearsFlag(unsigned char* SaucerAppearsFlag)
 {
     if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
@@ -1653,6 +1700,27 @@ void vControlSaucerShotAnimation()
                 AnimationsBuffer.SaucerShot=0; 
                 AnimationsBuffer.SaucerShotAnimationTimerSet=0;
                 AnimationsBuffer.SaucerShotAnimationTimer=0; 
+            }
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        xSemaphoreGive(AnimationsBuffer.lock);
+    }
+}
+
+void vControlTopWallShotAnimation()
+{
+    const TickType_t WallShotAnimationTime = 150;
+    if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
+        if(AnimationsBuffer.WallShot==1 && AnimationsBuffer.WallShotAnimationTimerSet==0){
+            AnimationsBuffer.WallShotAnimationTimer = xTaskGetTickCount();
+            AnimationsBuffer.WallShotAnimationTimerSet=1;
+            xSemaphoreGive(AnimationsBuffer.lock);
+        }
+        else if(AnimationsBuffer.WallShotAnimationTimerSet==1){
+            if(xTaskGetTickCount() - AnimationsBuffer.WallShotAnimationTimer >= WallShotAnimationTime){
+                AnimationsBuffer.WallShot=0; 
+                AnimationsBuffer.WallShotAnimationTimerSet=0;
+                AnimationsBuffer.WallShotAnimationTimer=0; 
             }
             xSemaphoreGive(AnimationsBuffer.lock);
         }
@@ -1808,9 +1876,10 @@ void vTaskPlayingGame(void *pvParameters)
 
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
+    static unsigned char SaucerAppearsFlag = 0;
     static unsigned char CreatureDestroyedAnimationFlag = 0;
     static unsigned char SaucerDestroyedAnimationFlag = 0;
-    static unsigned char SaucerAppearsFlag = 0;
+    static unsigned char WallShotAnimationFlag = 0;
 
     static unsigned char AIModeFlag=0;
     static signed short LatestShipX = 0;
@@ -1840,10 +1909,12 @@ void vTaskPlayingGame(void *pvParameters)
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
         xRetrieveCreatureDestroyedAnimationFlag(&CreatureDestroyedAnimationFlag);
         xRetrieveSaucerDestroyedAnimationFlag(&SaucerDestroyedAnimationFlag);
+        xRetrieveWallShotAnimationFlag(&WallShotAnimationFlag);
 
         vControlLivesRedAnimation();
         vControlCreaturesShotAnimation();
         vControlSaucerShotAnimation();
+        vControlTopWallShotAnimation();
 
         vControlNewLivesAddition();
 
@@ -1866,6 +1937,8 @@ void vTaskPlayingGame(void *pvParameters)
                         vDrawCreatureDestruction();
                     if(SaucerDestroyedAnimationFlag)
                         vDrawSaucerDestruction();
+                    if(WallShotAnimationFlag)
+                        vDrawWallShot();
 
                     vDrawBunkers();
                     vDrawLowerWall();
@@ -2199,6 +2272,7 @@ void vTaskUDPControl(void *pvParameters)
     in_port_t UDPport = UDP_RECEIVE_PORT;
 
     signed short CurrentShipX=0;
+    int RelativePosDifference=0;
     unsigned char ShipBulletOnScreenFlag=0;
     unsigned char LastShipBulletOnScreenFlagCondition=ShipBulletOnScreenFlag;
 
@@ -2217,16 +2291,21 @@ void vTaskUDPControl(void *pvParameters)
         while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}
 
             xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
-            signed int RelativePosDifference = CurrentShipX - SaucerBuffer.saucer->x_pos > 0;
 
-            if(RelativePosDifference>0){
-                sprintf(buffer, "+%d", RelativePosDifference);
+            if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
+                RelativePosDifference = SaucerBuffer.saucer->x_pos - (int)CurrentShipX;
+
+                if(RelativePosDifference>0){
+                    sprintf(buffer, "+%d", RelativePosDifference);
+                }
+                else
+                    sprintf(buffer, "-%d", -RelativePosDifference);
+
+
+                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+                xSemaphoreGive(SaucerBuffer.lock);
             }
-            else
-                sprintf(buffer, "-%d", -RelativePosDifference);
 
-
-            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
 
             if(ShipBulletOnScreenFlag!=LastShipBulletOnScreenFlagCondition){
                 if(ShipBulletOnScreenFlag==1){
@@ -2584,8 +2663,6 @@ void vTaskStateMachine(void *pvParameters){
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
                             vRecreateGame();
                             if(MainMenuTask) vTaskResume(MainMenuTask);
-                            if(StateQueue)
-                                xQueueSend(StateQueue,&MainMenuStateSignal, 0);
                             break;
                         default:
                             xSemaphoreGive(GameStateBuffer.lock);

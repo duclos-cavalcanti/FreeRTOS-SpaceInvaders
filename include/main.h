@@ -20,6 +20,9 @@
 #define SAUCER_SHOT_ANIMATION_W 31
 #define SAUCER_SHOT_ANIMATION_H 30
 
+#define WALL_SHOT_ANIMATION_W 11
+#define WALL_SHOT_ANIMATION_H 15
+
 void checkDraw(unsigned char status, const char *msg);
 
 typedef enum Columns_t{
