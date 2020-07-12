@@ -2348,6 +2348,7 @@ void vHandlePlayingGameStateSM()
                     xQueueSend(StateQueue,&NextLevelStateSignal, 0);
                 break;
             case ResetGameAction:
+                vPrepareGameValues(NewGameFromScratch);
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
                 if (StateQueue)
                     xQueueSend(StateQueue,&ResetGameStateSignal, 0);
@@ -2358,12 +2359,6 @@ void vHandlePlayingGameStateSM()
                 break;
         }
     }
-}
-void vHandleResetGameStateSM()
-{
-    vPrepareGameValues(NewGameFromScratch);
-    if(StateQueue)
-        xQueueSend(StateQueue,&MainMenuStateSignal, 0);
 }
 void vHandleMainMenuStateSM()
 {
@@ -2408,6 +2403,7 @@ void vHandleStateMachineActivation()
 {
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
         switch(GameStateBuffer.GameState){
+            case ResetGameState:
             case MainMenuState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleMainMenuStateSM();
@@ -2431,10 +2427,6 @@ void vHandleStateMachineActivation()
             case NextLevelState:
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleNextLevelStateSM();
-                break;
-            case ResetGameState:
-                xSemaphoreGive(GameStateBuffer.lock);
-                vHandleResetGameStateSM();
                 break;
             default:
                 break; 
@@ -2592,6 +2584,8 @@ void vTaskStateMachine(void *pvParameters){
                             if(NextLevelTask) vTaskSuspend(NextLevelTask);
                             vRecreateGame();
                             if(MainMenuTask) vTaskResume(MainMenuTask);
+                            if(StateQueue)
+                                xQueueSend(StateQueue,&MainMenuStateSignal, 0);
                             break;
                         default:
                             xSemaphoreGive(GameStateBuffer.lock);
