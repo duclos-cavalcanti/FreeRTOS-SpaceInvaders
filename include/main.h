@@ -52,6 +52,7 @@ typedef enum GameState_t{
     NextLevelState,
     PausedState,
     GameOverState,
+    CheatsState,
     ResetGameState
 }GameState_t;
 
@@ -88,8 +89,17 @@ typedef enum LivesAnimation_t{
 
 typedef enum TypesOfNewGames_t{
     NewGameFromScratch,
-    NewGameNextLevel
+    NewGameNextLevel,
+    InfiniteLivesCheat,
+    ChooseStartingLevelCheat,
+    ChooseStartingScoreCheat
 }TypesOfNewGames_t;
+
+typedef enum SelectedCheatsOption_t{
+    InfiniteLives,
+    ChooseStartingScore,
+    ChooseStartingLevel
+}SelectedCheatsOption_t;
 
 
 void vHandleStateMachineActivation();

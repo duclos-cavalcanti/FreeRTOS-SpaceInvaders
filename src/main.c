@@ -44,6 +44,7 @@ static TaskHandle_t MainPlayingGameTask = NULL;
 static TaskHandle_t PausedGameTask = NULL;
 static TaskHandle_t GameOverTask = NULL;
 static TaskHandle_t NextLevelTask = NULL;
+static TaskHandle_t CheatsTask = NULL;
 static TaskHandle_t ShipBulletControlTask = NULL;
 static TaskHandle_t BunkerShotControlTask = NULL;
 static TaskHandle_t BunkerCreaturesCrashedTask = NULL;
@@ -113,9 +114,11 @@ const unsigned char PausedGameStateSignal=PausedState;
 const unsigned char GameOverStateSignal=GameOverState;
 const unsigned char NextLevelStateSignal=NextLevelState;
 const unsigned char ResetGameStateSignal=ResetGameState;
+const unsigned char CheatsStateSignal=CheatsState;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
+    unsigned char ENTER_DEBOUNCE_STATE;
     SemaphoreHandle_t lock;
 } buttons_buffer_t;
 static buttons_buffer_t buttons = { 0 };
@@ -206,6 +209,14 @@ typedef struct PausedGameInfoBuffer_t{
     SemaphoreHandle_t lock;
 }PausedGameInfoBuffer_t;
 static PausedGameInfoBuffer_t PausedGameInfoBuffer = { 0 };
+
+typedef struct CheatsInfoBuffer_t{
+    SelectedCheatsOption_t SelectedCheatsOption;
+    unsigned int StartingScoreValue;
+    unsigned int StartingLevelValue;
+    SemaphoreHandle_t lock;
+}CheatsInfoBuffer_t;
+static CheatsInfoBuffer_t CheatsInfoBuffer = { 0 };
 
 typedef struct GameOverInfoBuffer_t{
     SelectedGameOverOption_t SelectedGameOverOption;
@@ -478,6 +489,17 @@ void vSetGameOverInfoBufferValues()
     xSemaphoreGive(GameOverInfoBuffer.lock);
 }
 
+void vSetCheatsInfoBufferValues()
+{
+    xSemaphoreTake(CheatsInfoBuffer.lock, portMAX_DELAY);
+
+        CheatsInfoBuffer.SelectedCheatsOption = InfiniteLives;
+        CheatsInfoBuffer.StartingLevelValue=1;
+        CheatsInfoBuffer.StartingScoreValue=0;
+
+    xSemaphoreGive(CheatsInfoBuffer.lock);
+}
+
 void vSetLevelModifiersValues()
 {
     xSemaphoreTake(LevelModifiersBuffer.lock, portMAX_DELAY);
@@ -551,21 +573,44 @@ void vPrepareGameValues(TypesOfNewGames_t TypeOfNewGame)
 
         switch(TypeOfNewGame){
             case(NewGameFromScratch):
-                xSemaphoreGive(PlayerInfoBuffer.lock);
                 PlayerInfoBuffer.Score=0;
                 PlayerInfoBuffer.Level=1;
                 PlayerInfoBuffer.FreshGame=0;
                 PlayerInfoBuffer.LivesLeft=3;
                 PlayerInfoBuffer.NewLivesAddedThreshold = INITIAL_POINTS_THRESHOLD;
+                xSemaphoreGive(PlayerInfoBuffer.lock);
                 break;
 
             case(NewGameNextLevel):
-                xSemaphoreGive(PlayerInfoBuffer.lock);
                 PlayerInfoBuffer.Level++;
                 PlayerInfoBuffer.FreshGame=0;
                 PlayerInfoBuffer.Score=PlayerInfoBuffer.Score;
+                xSemaphoreGive(PlayerInfoBuffer.lock);
                 break;
         
+            case(InfiniteLivesCheat):
+                PlayerInfoBuffer.LivesLeft=6000;
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                break;
+
+            case(ChooseStartingScoreCheat):
+                if(xSemaphoreTake(CheatsInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    PlayerInfoBuffer.Score=CheatsInfoBuffer.StartingScoreValue;
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+                vSetCheatsInfoBufferValues();
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                break;
+
+            case(ChooseStartingLevelCheat):
+                if(xSemaphoreTake(CheatsInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+                    PlayerInfoBuffer.Level=CheatsInfoBuffer.StartingLevelValue;
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+                vSetCheatsInfoBufferValues();
+                xSemaphoreGive(PlayerInfoBuffer.lock);
+                break;
+
             default:
                 xSemaphoreGive(PlayerInfoBuffer.lock);
                 break;
@@ -758,9 +803,13 @@ unsigned char xCheckEnterPressed()
 {
     if(xSemaphoreTake(buttons.lock, 0)==pdTRUE){
         if(buttons.buttons[KEYCODE(RETURN)]){
-            xSemaphoreGive(buttons.lock);
-            return 1;
+            if(buttons.buttons[KEYCODE(RETURN)]!=buttons.ENTER_DEBOUNCE_STATE){
+                buttons.ENTER_DEBOUNCE_STATE=buttons.buttons[KEYCODE(RETURN)];
+                xSemaphoreGive(buttons.lock);
+                return 1;
+            }
         }
+        buttons.ENTER_DEBOUNCE_STATE=buttons.buttons[KEYCODE(RETURN)];
         xSemaphoreGive(buttons.lock);
         return 0;
     }
@@ -812,6 +861,7 @@ void vTaskMainMenu(void *pvParameters)
         xGetButtonInput(); 
         xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE, 
                                   &DOWN_DEBOUNCE_STATE);
+
         if(xCheckEnterPressed())
                 vHandleStateMachineActivation();
 
@@ -834,7 +884,7 @@ void vTaskMainMenu(void *pvParameters)
                 xSemaphoreGive(ScreenLock);
                 vTaskDelayUntil(&xLastWakeTime, 
                                 pdMS_TO_TICKS(UpdatePeriod));
-                }
+            }
         }
 }
 
@@ -886,7 +936,7 @@ void vDrawLevel()
     }
     if(xSemaphoreTake(AnimationsBuffer.lock, 0)==pdTRUE){
         if(!tumGetTextSize((char*)str, &strWidth, NULL))
-            checkDraw(tumDrawText(str,120- strWidth/2,
+            checkDraw(tumDrawText(str,155- strWidth/2,
                                   SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                                   White), 
                                   __FUNCTION__);
@@ -904,7 +954,7 @@ void vDrawLives()
     }
 
     if(!tumGetTextSize((char*)str, &strWidth, NULL))
-        checkDraw(tumDrawText(str, 35 - strWidth/2, 
+        checkDraw(tumDrawText(str, 55 - strWidth/2, 
                               SCREEN_HEIGHT*97/100 - DEFAULT_FONT_SIZE/2,
                               xFetchAnimationColor(AnimationsBuffer.LivesCondition)),
                               __FUNCTION__);
@@ -2216,6 +2266,171 @@ void vTaskNextLevel(void *pvParameters)
     }
 }
 
+void vDrawCheatOptions()
+{
+    static char InfiniteLivesChar[20];
+    static char ChooseStartingScoreChar[35];
+    static char ChooseStartingLevelChar[35];
+
+    static int InfiniteLivesCharWidth=0;
+    static int ChooseStartingScoreCharWidth=0;   
+    static int ChooseStartingLevelCharWidth=0;
+
+    static char StartingScoreValueChar[20];
+    static int StartingScoreValueCharWidth=0;
+
+    static char StartingLevelValueChar[20];
+    static int StartingLevelValueCharWidth=0;
+
+    if(xSemaphoreTake(CheatsInfoBuffer.lock, 0)==pdTRUE){  
+
+        sprintf(InfiniteLivesChar,"Infinite Lives");
+        if(!tumGetTextSize((char *)InfiniteLivesChar,&InfiniteLivesCharWidth, NULL)){
+                        checkDraw(tumDrawText(InfiniteLivesChar,
+                                              SCREEN_WIDTH*1/4-InfiniteLivesCharWidth/2,SCREEN_HEIGHT*6/10-DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(CheatsInfoBuffer.SelectedCheatsOption, InfiniteLives)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(ChooseStartingScoreChar,"Choose Starting Score");
+        if(!tumGetTextSize((char *)ChooseStartingScoreChar,&ChooseStartingScoreCharWidth, NULL)){
+                        checkDraw(tumDrawText(ChooseStartingScoreChar,
+                                              SCREEN_WIDTH*1/4-ChooseStartingScoreCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(CheatsInfoBuffer.SelectedCheatsOption, ChooseStartingScore)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(StartingScoreValueChar,"Value: [  %d  ]", CheatsInfoBuffer.StartingScoreValue);
+        if(!tumGetTextSize((char *)StartingScoreValueChar,&StartingScoreValueCharWidth, NULL)){
+                        checkDraw(tumDrawText(StartingScoreValueChar,
+                                              SCREEN_WIDTH*3/4-StartingScoreValueCharWidth/2,SCREEN_HEIGHT*7/10-DEFAULT_FONT_SIZE/2,
+                                              Green),
+                                              __FUNCTION__);
+        }
+        
+
+
+        sprintf(ChooseStartingLevelChar,"Choose Starting Level");
+        if(!tumGetTextSize((char *)ChooseStartingLevelChar,&ChooseStartingLevelCharWidth, NULL)){
+                        checkDraw(tumDrawText(ChooseStartingLevelChar,
+                                              SCREEN_WIDTH*1/4-ChooseStartingLevelCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                              xFetchSelectedColor(CheatsInfoBuffer.SelectedCheatsOption, ChooseStartingLevel)),
+                                              __FUNCTION__);
+        }
+
+        sprintf(StartingLevelValueChar,"Value: [  %d  ]", CheatsInfoBuffer.StartingLevelValue);
+        if(!tumGetTextSize((char *)StartingLevelValueChar,&StartingLevelValueCharWidth, NULL)){
+                        checkDraw(tumDrawText(StartingLevelValueChar,
+                                              SCREEN_WIDTH*3/4-StartingLevelValueCharWidth/2,SCREEN_HEIGHT*8/10-DEFAULT_FONT_SIZE/2,
+                                              Green),
+                                              __FUNCTION__);
+        }
+        xSemaphoreGive(CheatsInfoBuffer.lock);
+    }
+}
+
+void xCheckCheatsSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
+                                 unsigned char* DOWN_DEBOUNCE_STATE)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+
+        if (buttons.buttons[KEYCODE(DOWN)]) {
+            if(buttons.buttons[KEYCODE(DOWN)]!=(*DOWN_DEBOUNCE_STATE))
+                if(xSemaphoreTake(CheatsInfoBuffer.lock,0)==pdTRUE){  
+                    vDownCheatsSelection(&CheatsInfoBuffer.SelectedCheatsOption);
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+        }                            
+        else if (buttons.buttons[KEYCODE(UP)]) { 
+            if(buttons.buttons[KEYCODE(UP)]!=(*UP_DEBOUNCE_STATE))
+                if(xSemaphoreTake(CheatsInfoBuffer.lock,0)==pdTRUE){  
+                    vUpCheatsSelection(&CheatsInfoBuffer.SelectedCheatsOption);
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+        }   
+
+        (*UP_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(UP)];
+        (*DOWN_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(DOWN)];
+        xSemaphoreGive(buttons.lock);                                                                                                                                                                
+    }
+}
+
+void xCheckLeftRightIncrement(unsigned char* RIGHT_DEBOUNCE_STATE,
+                              unsigned char* LEFT_DEBOUNCE_STATE)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+
+        if (buttons.buttons[KEYCODE(LEFT)]) {
+            if(buttons.buttons[KEYCODE(LEFT)]!=(*LEFT_DEBOUNCE_STATE))
+                if(xSemaphoreTake(CheatsInfoBuffer.lock,0)==pdTRUE){  
+                    vDecrementValue(CheatsInfoBuffer.SelectedCheatsOption,
+                                    &CheatsInfoBuffer.StartingScoreValue,
+                                    &CheatsInfoBuffer.StartingLevelValue);
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+        }                            
+        else if (buttons.buttons[KEYCODE(RIGHT)]) { 
+            if(buttons.buttons[KEYCODE(RIGHT)]!=(*RIGHT_DEBOUNCE_STATE))
+                if(xSemaphoreTake(CheatsInfoBuffer.lock,0)==pdTRUE){  
+                    vIncrementValue(CheatsInfoBuffer.SelectedCheatsOption,
+                                    &CheatsInfoBuffer.StartingScoreValue,
+                                    &CheatsInfoBuffer.StartingLevelValue);
+                    xSemaphoreGive(CheatsInfoBuffer.lock);
+                }
+        }   
+
+        (*RIGHT_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(RIGHT)];
+        (*LEFT_DEBOUNCE_STATE)=buttons.buttons[KEYCODE(LEFT)];
+        xSemaphoreGive(buttons.lock);                                                                                                                                                                
+    }
+}
+
+void vTaskCheats(void *pvParameters)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t UpdatePeriod = 20;
+
+    TickType_t xInitialDebouncePeriodReference = xTaskGetTickCount();
+    const TickType_t InitialDebouncePeriod = 600;
+   
+    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char DOWN_DEBOUNCE_STATE = 0;
+
+    unsigned char RIGHT_DEBOUNCE_STATE = 0;
+    unsigned char LEFT_DEBOUNCE_STATE = 0;
+
+    vSetCheatsInfoBufferValues();
+
+    while(1){
+        xGetButtonInput(); 
+         
+        xCheckCheatsSelectionChange(&UP_DEBOUNCE_STATE, 
+                                   &DOWN_DEBOUNCE_STATE);
+        xCheckLeftRightIncrement(&RIGHT_DEBOUNCE_STATE,
+                                 &LEFT_DEBOUNCE_STATE);
+
+        if(xTaskGetTickCount() - xInitialDebouncePeriodReference > InitialDebouncePeriod)
+            if(xCheckEnterPressed()){
+                xInitialDebouncePeriodReference = xTaskGetTickCount();
+                vHandleStateMachineActivation();
+            }
+    
+        if(DrawSignal)
+            if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
+                xSemaphoreTake(ScreenLock,portMAX_DELAY);
+
+                    tumDrawClear(Black); 
+                    vDrawSpaceInvadersBanner();
+                    vDrawCheatOptions();
+
+
+                xSemaphoreGive(ScreenLock);
+                vTaskDelayUntil(&xLastWakeTime, 
+                                pdMS_TO_TICKS(UpdatePeriod));
+            }
+    }
+}
+
 void UDPhandler(size_t read_size, char *buffer, void *args)
 {
     OpponentCommands_t NextKEY = NONE;
@@ -2483,6 +2698,11 @@ void vHandleMainMenuStateSM()
                 break;
 
             case Cheats:
+                xSemaphoreGive(MainMenuInfoBuffer.lock);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&CheatsStateSignal, 0);
+                break;
+
             case MultiPlayer:
                 xSemaphoreGive(MainMenuInfoBuffer.lock);
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -2500,6 +2720,39 @@ void vHandleMainMenuStateSM()
         xSemaphoreGive(MainMenuInfoBuffer.lock);
     }
 }
+
+void vHandleCheatsStateSM()
+{
+    if(xSemaphoreTake(CheatsInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
+        switch(CheatsInfoBuffer.SelectedCheatsOption){
+            case InfiniteLives:
+                xSemaphoreGive(CheatsInfoBuffer.lock);
+                vPrepareGameValues(InfiniteLivesCheat);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
+                break; 
+
+            case ChooseStartingScore:
+                xSemaphoreGive(CheatsInfoBuffer.lock);
+                vPrepareGameValues(ChooseStartingScoreCheat);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
+                break; 
+
+            case ChooseStartingLevel:
+                xSemaphoreGive(CheatsInfoBuffer.lock);
+                vPrepareGameValues(ChooseStartingLevelCheat);
+                if(StateQueue)
+                    xQueueSend(StateQueue,&MainMenuStateSignal, 0);
+                break; 
+            default:
+                xSemaphoreGive(CheatsInfoBuffer.lock);
+                break; 
+        }
+        xSemaphoreGive(GameOverInfoBuffer.lock);
+    }
+}
+
 void vHandleStateMachineActivation()
 {
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
@@ -2529,6 +2782,9 @@ void vHandleStateMachineActivation()
                 xSemaphoreGive(GameStateBuffer.lock);
                 vHandleNextLevelStateSM();
                 break;
+            case CheatsState:
+                xSemaphoreGive(GameStateBuffer.lock);
+                vHandleCheatsStateSM();
             default:
                 break; 
         
@@ -2603,6 +2859,7 @@ void vTaskStateMachine(void *pvParameters){
                         case MainMenuState: // Begin 
 
                             xSemaphoreGive(GameStateBuffer.lock);
+                            if(CheatsTask) vTaskSuspend(CheatsTask);
                             if(UDPControlTask) vTaskSuspend(UDPControlTask);
                             if(CreaturesActionControlTask) vTaskSuspend(CreaturesActionControlTask);
                             if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
@@ -2676,6 +2933,13 @@ void vTaskStateMachine(void *pvParameters){
                             if(NextLevelTask) vTaskResume(NextLevelTask);
                             break;
 
+                        case CheatsState:
+
+                            xSemaphoreGive(GameStateBuffer.lock);
+                            if(MainMenuTask) vTaskSuspend(MainMenuTask);
+                            if(CheatsTask) vTaskResume(CheatsTask);
+
+                            break;
                         case ResetGameState:
 
                             xSemaphoreGive(GameStateBuffer.lock);
@@ -2945,6 +3209,18 @@ int main(int argc, char *argv[])
         goto err_saucerAIcontroltask;
     }
 
+    if(xTaskCreate(vTaskCheats, "Cheats Task", mainGENERIC_STACK_SIZE*2, NULL,
+                   configMAX_PRIORITIES - 4, &CheatsTask)!=pdPASS){
+        PRINT_ERROR("Failed to create Cheats Task.");
+        goto err_cheatstask;
+    }
+
+    CheatsInfoBuffer.lock = xSemaphoreCreateMutex();
+    if(!CheatsInfoBuffer.lock){
+        PRINT_ERROR("Failed to create Cheats Buffer lock.");
+        goto err_cheatsbufferlock;
+    }
+
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
     vTaskSuspend(PausedGameTask);
@@ -2954,6 +3230,7 @@ int main(int argc, char *argv[])
     vTaskSuspend(MainPlayingGameTask);
     vTaskSuspend(PausedGameTask);
     vTaskSuspend(GameOverTask);
+    vTaskSuspend(CheatsTask);
     vTaskSuspend(NextLevelTask);
     vTaskSuspend(ShipBulletControlTask);
     vTaskSuspend(BunkerShotControlTask);
@@ -2973,7 +3250,10 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
-
+err_cheatsbufferlock:
+    vTaskDelete(CheatsTask);
+err_cheatstask:
+    vTaskDelete(SaucerAIControlTask);
 err_saucerAIcontroltask:
     vQueueDelete(ShipPosQueue);
 err_shipposqueue:
