@@ -14,11 +14,11 @@
 #define BOTTOM_WALLTHICKNESS 3
 #define BOTTOM_WALLPOSITION SCREEN_HEIGHT*95/100
 
-#define CREATURE_SHOT_ANIMATION_W 25
-#define CREATURE_SHOT_ANIMATION_H 24
+#define CREATURE_SHOT_ANIMATION_W 12
+#define CREATURE_SHOT_ANIMATION_H 12
 
-#define SAUCER_SHOT_ANIMATION_W 31
-#define SAUCER_SHOT_ANIMATION_H 30
+#define SAUCER_SHOT_ANIMATION_W 12
+#define SAUCER_SHOT_ANIMATION_H 12
 
 #define WALL_SHOT_ANIMATION_W 11
 #define WALL_SHOT_ANIMATION_H 15
@@ -95,4 +95,5 @@ typedef enum TypesOfNewGames_t{
 void vHandleStateMachineActivation();
 unsigned char xCheckUDPInput(signed short* SaucerX);
 void vPrepareImageSaucer(unsigned short* ImageIndex);
+void vControlNewLivesAddition();
 #endif 

@@ -68,7 +68,7 @@ void vDrawShipBullet(ship_t* ship)
 
 unsigned char xCheckShipBulletCollisionTopWall(signed short b_ypos)
 {
-    if(b_ypos<=10) return 1;
+    if(b_ypos<=UPPER_WALL_LIMIT) return 1;
     else return 0;
 }
 

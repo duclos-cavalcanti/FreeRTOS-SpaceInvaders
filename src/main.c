@@ -60,7 +60,7 @@ aIO_handle_t UDP_SOC_RECEIVE = NULL;
 aIO_handle_t UDP_SOC_TRANSMIT = NULL;  
 static SemaphoreHandle_t HandleUDP = NULL;
 static QueueHandle_t NextKEYQueue = NULL;
-static QueueHandle_t DifficultyQueue = NULL;
+static QueueHandle_t PauseResumeAIQueue = NULL;
 static QueueHandle_t ShipPosQueue = NULL;
 
 static TaskHandle_t SwapBuffers = NULL;
@@ -504,8 +504,8 @@ void vSetLevelModifiersValues()
 
 void vSetAnimationsBufferValues()
 {
-    CreatureShotAnimation = tumDrawLoadImage("../resources/creature_destroyed.bmp");
-    SaucerShotAnimation = tumDrawLoadImage("../resources/saucer_destroyed.bmp");
+    CreatureShotAnimation = tumDrawLoadImage("../resources/destroyedv2.bmp");
+    SaucerShotAnimation = tumDrawLoadImage("../resources/destroyedv2.bmp");
     WallShotAnimation = tumDrawLoadImage("../resources/ShipBulletTopDMGv2.bmp");
 
     xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY);
@@ -929,7 +929,7 @@ void vDrawSaucerDestruction()
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
         checkDraw(tumDrawLoadedImage(SaucerShotAnimation, 
                                      AnimationsBuffer.SaucerShotX - SAUCER_SHOT_ANIMATION_W/2,
-                                     AnimationsBuffer.SaucerShotY - SAUCER_SHOT_ANIMATION_H/2),
+                                     AnimationsBuffer.SaucerShotY - SAUCER_SHOT_ANIMATION_H/2 - SAUCER_HEIGHT/2),
                                      __FUNCTION__);
         xSemaphoreGive(AnimationsBuffer.lock);
     }
@@ -951,7 +951,7 @@ void vDrawWallShot()
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
         checkDraw(tumDrawLoadedImage(WallShotAnimation, 
                                      AnimationsBuffer.WallShotX - WALL_SHOT_ANIMATION_W/2,
-                                     40 - WALL_SHOT_ANIMATION_H/2),
+                                     UPPER_WALL_LIMIT - WALL_SHOT_ANIMATION_H/2),
                                      __FUNCTION__);
         xSemaphoreGive(AnimationsBuffer.lock);
     }
@@ -1179,6 +1179,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
 
                 vPlayDeadCreatureSound();
                 vCreatureScoreControl(CreatureCollisionID);
+                vControlNewLivesAddition();
                 vSpeedCreaturesControl(&NumberOfCreaturesKilled);
                 vActivateCreatureDestroyedAnimationState(CreatureCollisionID, CreaturesBuffer.Creatures);
                 xSemaphoreGive(CreaturesBuffer.lock);
@@ -1709,7 +1710,7 @@ void vControlSaucerShotAnimation()
 
 void vControlTopWallShotAnimation()
 {
-    const TickType_t WallShotAnimationTime = 150;
+    const TickType_t WallShotAnimationTime = 130;
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
         if(AnimationsBuffer.WallShot==1 && AnimationsBuffer.WallShotAnimationTimerSet==0){
             AnimationsBuffer.WallShotAnimationTimer = xTaskGetTickCount();
@@ -1867,6 +1868,15 @@ unsigned char xCheckCreaturesReachedBottom()
     return 0;
 }
 
+void vToggleAICommunication(unsigned char* SaucerAppearsFlag, unsigned char* LastSaucerAppearsFlag)
+{
+    if((*SaucerAppearsFlag)!=(*LastSaucerAppearsFlag)){
+        if(PauseResumeAIQueue)
+            xQueueSend(PauseResumeAIQueue, SaucerAppearsFlag, 0);
+        (*LastSaucerAppearsFlag) = (*SaucerAppearsFlag);
+    }
+}
+
 void vTaskPlayingGame(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -1877,6 +1887,7 @@ void vTaskPlayingGame(void *pvParameters)
     static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
     static unsigned char SaucerAppearsFlag = 0;
+    static unsigned char LastSaucerAppearsFlag = 1;
     static unsigned char CreatureDestroyedAnimationFlag = 0;
     static unsigned char SaucerDestroyedAnimationFlag = 0;
     static unsigned char WallShotAnimationFlag = 0;
@@ -1904,6 +1915,8 @@ void vTaskPlayingGame(void *pvParameters)
         if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
             vActivateShipBulletFlags();
 
+        vToggleAICommunication(&SaucerAppearsFlag, &LastSaucerAppearsFlag);
+
         xRetrieveSaucerAppearsFlag(&SaucerAppearsFlag);
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
@@ -1911,12 +1924,11 @@ void vTaskPlayingGame(void *pvParameters)
         xRetrieveSaucerDestroyedAnimationFlag(&SaucerDestroyedAnimationFlag);
         xRetrieveWallShotAnimationFlag(&WallShotAnimationFlag);
 
+
         vControlLivesRedAnimation();
         vControlCreaturesShotAnimation();
         vControlSaucerShotAnimation();
         vControlTopWallShotAnimation();
-
-        vControlNewLivesAddition();
 
         if(DrawSignal)
             if(xSemaphoreTake(DrawSignal,portMAX_DELAY)==pdTRUE){    
@@ -2272,6 +2284,7 @@ void vTaskUDPControl(void *pvParameters)
     in_port_t UDPport = UDP_RECEIVE_PORT;
 
     signed short CurrentShipX=0;
+    unsigned char PauseResumeSignal;
     int RelativePosDifference=0;
     unsigned char ShipBulletOnScreenFlag=0;
     unsigned char LastShipBulletOnScreenFlagCondition=ShipBulletOnScreenFlag;
@@ -2287,6 +2300,15 @@ void vTaskUDPControl(void *pvParameters)
 
     while(1){
         vTaskDelay(pdMS_TO_TICKS(UpdatePeriod)); 
+
+        if(xQueueReceive(PauseResumeAIQueue, &PauseResumeSignal, 0)==pdTRUE){
+            if(PauseResumeSignal==1)
+                sprintf(buffer, "RESUME"); 
+            else
+                sprintf(buffer, "PAUSE"); 
+
+            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+        }
 
         while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}
 
@@ -2905,10 +2927,10 @@ int main(int argc, char *argv[])
     }
 
 
-    DifficultyQueue = xQueueCreate(1, sizeof(unsigned char));
-    if (!DifficultyQueue) {
+    PauseResumeAIQueue = xQueueCreate(1, sizeof(unsigned char));
+    if (!PauseResumeAIQueue) {
         exit(EXIT_FAILURE);
-        goto err_difficultyqueue;
+        goto err_pauseresumequeue;
     }
 
     ShipPosQueue = xQueueCreate(1, sizeof(unsigned short));
@@ -2955,8 +2977,8 @@ int main(int argc, char *argv[])
 err_saucerAIcontroltask:
     vQueueDelete(ShipPosQueue);
 err_shipposqueue:
-    vQueueDelete(DifficultyQueue);
-err_difficultyqueue:    
+    vQueueDelete(PauseResumeAIQueue);
+err_pauseresumequeue:    
     vQueueDelete(NextKEYQueue);
 err_nextkeyqueue:
     vTaskDelete(UDPControlTask);

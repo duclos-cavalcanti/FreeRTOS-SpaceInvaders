@@ -11,6 +11,8 @@
 #define SHIP_BULLET_THICKNESS 2
 #define SHIP_BULLET_LENGTH 10
 
+#define UPPER_WALL_LIMIT 40
+
 typedef struct BunkerCollisionStatus_t{
     unsigned short BunkerID;
     unsigned char HIT;

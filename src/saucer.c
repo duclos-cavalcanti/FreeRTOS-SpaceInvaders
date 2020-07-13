@@ -83,6 +83,7 @@ void xCheckAISaucerBorder(saucer_t* saucer, H_Movement_t CurrentDirection)
 {
     H_Movement_t LastDirection = CurrentDirection;
     H_Movement_t NewDirection =xCheckSaucerRightEdgeDistance(saucer);
+
     if(NewDirection!=LastDirection && LastDirection==RIGHT)
         saucer->x_pos=0+SAUCER_WIDTH/2;
     else if(NewDirection!=LastDirection && LastDirection==LEFT)
