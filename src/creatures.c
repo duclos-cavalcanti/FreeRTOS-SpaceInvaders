@@ -1,14 +1,17 @@
+/** Basic includes */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
+/** Game related */
 #include "TUM_Draw.h"
 #include "creatures.h"
 #include "ship.h"
 #include "utilities.h"
 
-int* SetXcoords()
+int* SetXcoords()//Creates and assigns an array that holds the x coordinates of each column of creatures
 {
     int* CreaturesXcoords = calloc(NUMB_OF_COLUMNS, sizeof(int));
 
@@ -18,7 +21,7 @@ int* SetXcoords()
     return CreaturesXcoords;
 }
 
-int* SetYcoords()
+int* SetYcoords()//Creates and assigns an array that holds the y coordinates of each row of creatures
 {
     int* CreaturesYcoords = calloc(NUMB_OF_ROWS, sizeof(int));
 
@@ -28,7 +31,7 @@ int* SetYcoords()
     return CreaturesYcoords;
 }
 
-int* SetTypes()
+int* SetTypes()//Creates and assings to an array that holds what level type each row of creatures will consist of
 {
     int* CreaturesTypes = calloc(NUMB_OF_ROWS, sizeof(int));
 
@@ -50,8 +53,8 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
     creature.y_pos=y_pos;
     creature.speed=CREATURE_SPEED;
     creature.Alive=1;
-    creature.CreatureType=CreatureType;
-    creature.CreatureID=ID;
+    creature.CreatureType=CreatureType; //Difficulty Level
+    creature.CreatureID=ID; //Simply the index in which this creature is stored in the array of structs that hold all creatures
     creature.Position=Position0;
 
     return creature;
@@ -59,7 +62,7 @@ creature_t CreateSingleCreature(signed short x_pos, signed short y_pos,
 
 creature_t* CreateCreatures()
 {
-    creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t));
+    creature_t* CreatureArray = calloc(NUMB_OF_CREATURES, sizeof(creature_t)); //Numb of creatures = rows*columns which will be 40
     if(!CreatureArray){
         fprintf(stderr, "Failed to creature arrays.");
         exit(EXIT_FAILURE);
@@ -72,10 +75,10 @@ creature_t* CreateCreatures()
 
     for(int i=0;i<NUMB_OF_ROWS;i++){
         for(int j=0;j<NUMB_OF_COLUMNS;j++){ 
-            CreatureArray[CreatureCountID]=CreateSingleCreature(CreaturesX[j],
-                                                                CreaturesY[i],
-                                                                CreaturesTYPES[i], 
-                                                                CreatureCountID);
+            CreatureArray[CreatureCountID]=CreateSingleCreature(CreaturesX[j], //defined in SetXcoords
+                                                                CreaturesY[i], //defined in SetYcoords
+                                                                CreaturesTYPES[i], //defined in SetTypes
+                                                                CreatureCountID); //Index of array
             ++CreatureCountID;
         }
     }
@@ -91,7 +94,6 @@ void vAssignFrontierCreatures(signed short FrontierCreaturesID[8])
 
 unsigned char xCheckKilledCreatureWithinFrontier(unsigned char CreatureCollisionID, signed short* FrontierCreaturesID)
 {
-
     for(int i=0;i<NUMB_OF_COLUMNS;++i){
         if(FrontierCreaturesID[i]==CreatureCollisionID) 
                 return 1;
@@ -100,9 +102,21 @@ unsigned char xCheckKilledCreatureWithinFrontier(unsigned char CreatureCollision
     return 0;
 }
 
+/**
+ *@brief Looks for alive creatures behind the one associated to the CreatureHitID that has been killed
+ *
+ *Checks if the creature "behind" the killed one is alive and keeps 
+ *checking until either finding an alive creature at rom above and then returning how many rows above it is
+ *or either finding out that the column has been vanquished, which in thi case will end in a return -1,
+ *signaling the calling function that this column is now entirely dead.
+ *
+ *@param creatures array of structs that hold all creature instances and their current information
+ *@param CreatureHitID integer that shows the index/id of the killed creature
+ *@param Row an enum integer that tells me which Row the killed creature finds itslef
+ */
 signed char xCheckCreatureBehindAlive(creature_t* creatures, 
-                                        unsigned char CreatureHitID,
-                                        Rows_t Row)
+                                      unsigned char CreatureHitID,
+                                      Rows_t Row)
 {
     switch(Row){
         case Row_1:
@@ -143,32 +157,34 @@ signed char xCheckCreatureBehindAlive(creature_t* creatures,
     }
 }
 
+//Updates the values within the FrontierCreaturesID array
 void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID, 
                                  unsigned char CreatureHitID,
                                  creature_t* creatures)
 {
     signed char StepDifference=0; 
 
-    if(CreatureHitID < NUMB_OF_COLUMNS){
-
+    if(CreatureHitID < NUMB_OF_COLUMNS){ //if within row 1
+        
+        //finds out the step difference/how many rows above is the next alive creature
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_1);
-        if(StepDifference>0)
+        if(StepDifference>0) 
             FrontierCreaturesID[CreatureHitID] += 8 * StepDifference;
-        else 
+        else //Entire column is dead
             FrontierCreaturesID[CreatureHitID] = -1;
     }
-    else if(CreatureHitID < NUMB_OF_COLUMNS*2){
+    else if(CreatureHitID < NUMB_OF_COLUMNS*2){ //if within row 2
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_2);
-        if(StepDifference>0)
+        if(StepDifference>0) //if within row 3
             FrontierCreaturesID[CreatureHitID - 8] += 8 * StepDifference;
         else 
             FrontierCreaturesID[CreatureHitID - 8] = -1;
     }
-    else if(CreatureHitID < NUMB_OF_COLUMNS*3){
+    else if(CreatureHitID < NUMB_OF_COLUMNS*3){ //if within row 3
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_3);
@@ -177,7 +193,7 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
         else 
             FrontierCreaturesID[CreatureHitID -16] = -1;
     }
-    else if(CreatureHitID < NUMB_OF_COLUMNS*4){
+    else if(CreatureHitID < NUMB_OF_COLUMNS*4){ //if within row 4
         StepDifference = xCheckCreatureBehindAlive(creatures,
                                                    CreatureHitID,
                                                    Row_4);
@@ -186,8 +202,8 @@ void vUpdateFrontierCreaturesIDs(signed short* FrontierCreaturesID,
         else 
             FrontierCreaturesID[CreatureHitID - 24] = -1;
     }
-    else{
-        FrontierCreaturesID[CreatureHitID - 32] = -1;
+    else{ //if within row 5 
+        FrontierCreaturesID[CreatureHitID - 32] = -1; //there is no row above row 5 -> Column is vanquished
     }
 }
 
@@ -197,8 +213,8 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
     signed short R_OFFSET = 0;
     signed short L_OFFSET = 0;
 
-    if(Direction == RIGHT){
-        R_OFFSET = creature->speed;    
+    if(Direction == RIGHT){ //Meaning creture is currently moving to the tight
+        R_OFFSET = creature->speed; //take into account its speed to know if bullet could hit it in the next frame   
         L_OFFSET = 0;
     }
     else{
@@ -214,10 +230,10 @@ signed char xCheckSingleCreatureCollision(signed short bullet_x, signed short bu
 
     if(LEFT_LIMIT <= bullet_x && bullet_x <= RIGHT_LIMIT)
         if(bullet_y <= LOWER_LIMIT && bullet_y >= UPPER_LIMIT)
-            return creature->CreatureID;
+            return creature->CreatureID;//return the ID of the hit/to-be-hit creature
         else return -1;
     else
-        return -1;
+        return -1; //No hit
 }
 
 signed char xCheckCreaturesCollision(creature_t* creatures,
@@ -234,7 +250,7 @@ signed char xCheckCreaturesCollision(creature_t* creatures,
                                                               Direction,
                                                               &creatures[i]);
 
-            if(CreatureCollisionID>=0) 
+            if(CreatureCollisionID>=0) //A creature hit was found
                 return CreatureCollisionID;
         }
     }
@@ -251,7 +267,7 @@ unsigned char xCheckCreaturesTouchBunkers(creature_t* creatures,
     for(int i=0;i<NUMB_OF_COLUMNS;++i){
         CreatureID=FrontierCreaturesID[i];
         if(CreatureID>=0){
-            BunkerCollisionID=xCheckSingleCreatureBunkerCollision(creatures[CreatureID].x_pos,
+            BunkerCollisionID=xCheckSingleCreatureBunkerCollision(creatures[CreatureID].x_pos, //Checks for bunker collision
                                                                   creatures[CreatureID].y_pos + CREATURE_HEIGHT/2,
                                                                   Bunkers);
 
@@ -279,10 +295,10 @@ unsigned char xCheckFrontierReachedBottom(creature_t* creatures,
 
     for(int i=0;i<NUMB_OF_COLUMNS;++i){
         CreatureID = FrontierCreaturesID[i];
-        if(CreatureID >= 0 && creatures[CreatureID].Alive == 1){
+        if(CreatureID >= 0 && creatures[CreatureID].Alive == 1){ //Checking if the to-be-checked creature is in fact alive or if the column is already dead
             CreatureReachedBottomID = xCheckSingleCreatureReachedBottom(creatures[CreatureID]);
 
-            if(CreatureReachedBottomID>0)
+            if(CreatureReachedBottomID>0) //We have a hit, game over
                 return CreatureReachedBottomID;
         }
     }
@@ -317,30 +333,30 @@ H_Movement_t xCheckDirectionOfRows(creature_t* creatures,H_Movement_t DIRECTION)
     signed short ROW_END = NUMB_OF_COLUMNS - 1;
     signed short ROW_BEGIN = 0; 
 
-    if(DIRECTION == RIGHT){
-        creature_count=ROW_END;        
+    if(DIRECTION == RIGHT){ //if current direction is right
+        creature_count=ROW_END; //Begin checking by the right-most creatures position 
         while(creature_count >= ROW_BEGIN){
-            if(creatures[creature_count].Alive==1 ||
+            if(creatures[creature_count].Alive==1 || //only skip checking edge distance if entire column is dead
                creatures[creature_count+8].Alive==1 ||
                creatures[creature_count+16].Alive==1 ||
                creatures[creature_count+24].Alive==1  ||
                creatures[creature_count+32].Alive==1){
 
-                if(xCheckRightEdgeDistance(creatures[creature_count]) ||
+                if(xCheckRightEdgeDistance(creatures[creature_count]) || //Check for all currently-iterated creatures if any one of them are at the right edge
                    xCheckRightEdgeDistance(creatures[creature_count+8]) ||
                    xCheckRightEdgeDistance(creatures[creature_count+16]) ||
                    xCheckRightEdgeDistance(creatures[creature_count+24]) ||
                    xCheckRightEdgeDistance(creatures[creature_count+32]))
 
-                    return LEFT;
+                    return LEFT; //If any one of them returns positively we must change the creatures block direction
                 else 
                     return RIGHT;
                 }
 
-            --creature_count;
+            --creature_count; //Look at the to-the-left column
             } 
         }
-    else if(DIRECTION == LEFT){ 
+    else if(DIRECTION == LEFT){ //if current direction is left
         creature_count = ROW_BEGIN;
         while(creature_count<=ROW_END){  
             if(creatures[creature_count].Alive==1 ||
@@ -407,7 +423,7 @@ unsigned char xCheckDirectionChange(H_Movement_t* LastDirection, H_Movement_t Cu
 }
 void vMoveCreaturesHorizontal(creature_t* creatures, H_Movement_t* DIRECTION)
 {
-    (*DIRECTION) = xCheckDirectionOfRows(creatures, (*DIRECTION));
+    (*DIRECTION) = xCheckDirectionOfRows(creatures, (*DIRECTION)); //finds out the newest possible direction of the creatures block
 
     if((*DIRECTION) == RIGHT)
         vMoveCreaturesRightHorizontal(creatures);
@@ -466,8 +482,8 @@ void xChooseShootingCreature(signed short* FrontierCreaturesID, creature_t* crea
     signed short PreliminaryChoice=0;
 
     while(LeaveLoop == 0){
-        PreliminaryChoice = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS];
-        if(PreliminaryChoice >=0 && creatures[PreliminaryChoice].Alive == 1){
+        PreliminaryChoice = FrontierCreaturesID[rand()%NUMB_OF_COLUMNS]; //Chooses a randomn column from the FrontierCreaturesID array
+        if(PreliminaryChoice >=0 && creatures[PreliminaryChoice].Alive == 1){ //check if the value stored there is negative, meaning column is vanquished or if the current choice is of an alive creature (double-checking)
             (*Choice) = PreliminaryChoice;
             LeaveLoop = 1;
         }

@@ -6,11 +6,13 @@
 
 #include <SDL2/SDL_scancode.h>
 
+/** FreeRTOS related */
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
 #include "task.h"
 
+/** TUM library related*/
 #include "TUM_Ball.h"
 #include "TUM_Draw.h"
 #include "TUM_Event.h"
@@ -24,6 +26,7 @@
 #define UDP_RECEIVE_PORT 1234
 #define UDP_TRANSMIT_PORT 1235
 
+/**Game related */
 #include "utilities.h"
 #include "main.h"
 #include "ship.h"
@@ -38,7 +41,7 @@
 #define FPS_AVERAGE_COUNT 50
 #define FPS_FONT "IBMPlexSans-Bold.ttf"
 
-
+///Tasks
 static TaskHandle_t MainMenuTask = NULL;
 static TaskHandle_t MainPlayingGameTask = NULL;
 static TaskHandle_t PausedGameTask = NULL;
@@ -57,56 +60,55 @@ static TaskHandle_t SaucerShotControlTask = NULL;
 
 static TaskHandle_t UDPControlTask = NULL;
 static TaskHandle_t SaucerAIControlTask = NULL;
-aIO_handle_t UDP_SOC_RECEIVE = NULL;
-aIO_handle_t UDP_SOC_TRANSMIT = NULL;  
-static SemaphoreHandle_t HandleUDP = NULL;
-static QueueHandle_t NextKEYQueue = NULL;
-static QueueHandle_t PauseResumeAIQueue = NULL;
-static QueueHandle_t ShipPosQueue = NULL;
-
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
 #define STATE_DEBOUNCE_DELAY 250
 #define STATE_QUEUE_LENGTH 1
+///Queues
 static QueueHandle_t StateQueue = NULL;
+static QueueHandle_t NextKEYQueue = NULL;
+static QueueHandle_t PauseResumeAIQueue = NULL;
+static QueueHandle_t ShipPosQueue = NULL;
 
+///Images
 static image_handle_t TitleScreen = NULL;
 static image_handle_t GameOver = NULL;
 static image_handle_t NextLevel = NULL;
 static image_handle_t PlayerShip = NULL;
-
 static image_handle_t Bunker = NULL;
 static image_handle_t BunkerHit1 = NULL;
 static image_handle_t BunkerHit2 = NULL;
 static image_handle_t BunkerHit3 = NULL;
 static image_handle_t BunkerHit4 = NULL;
-
-
 static image_handle_t CreatureMEDIUM_0 = NULL;
 static image_handle_t CreatureMEDIUM_1 = NULL;
 static image_handle_t CreatureEASY_0 = NULL;
 static image_handle_t CreatureEASY_1 = NULL;
 static image_handle_t CreatureHARD_0 = NULL;
 static image_handle_t CreatureHARD_1 = NULL;
-
 static image_handle_t SaucerBoss = NULL;
 static image_handle_t SaucerAIBoss = NULL;
-
 static image_handle_t CreaturesEasy_MenuScaled_0 = NULL;
 static image_handle_t CreaturesEasy_MenuScaled_1 = NULL;
 static image_handle_t CreaturesMedium_MenuScaled_0 = NULL;
 static image_handle_t CreaturesMedium_MenuScaled_1 = NULL;
 static image_handle_t CreaturesHard_MenuScaled_0 = NULL;
 static image_handle_t CreaturesHard_MenuScaled_1 = NULL;
-
 static image_handle_t CreatureShotAnimation = NULL;
 static image_handle_t SaucerShotAnimation = NULL;
 static image_handle_t WallShotAnimation = NULL;
 
+///Semaphore/Mutexs
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
+static SemaphoreHandle_t HandleUDP = NULL;
 
+///UDP Sockets
+aIO_handle_t UDP_SOC_RECEIVE = NULL;
+aIO_handle_t UDP_SOC_TRANSMIT = NULL;  
+
+///Signals used to change states.
 const unsigned char MainMenuStateSignal=MainMenuState;
 const unsigned char SinglePlayingStateSignal=SinglePlayingState;;
 const unsigned char MultiPlayingStateSignal=MultiPlayingState;;
@@ -116,6 +118,7 @@ const unsigned char NextLevelStateSignal=NextLevelState;
 const unsigned char ResetGameStateSignal=ResetGameState;
 const unsigned char CheatsStateSignal=CheatsState;
 
+///Global Structs with protective locks.
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
     unsigned char ENTER_DEBOUNCE_STATE;
@@ -250,6 +253,7 @@ typedef struct AnimationsBuffer_t{
 }AnimationsBuffer_t;
 AnimationsBuffer_t AnimationsBuffer = { 0 };
 
+//Retrieves the latest button entries.
 void xGetButtonInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -258,6 +262,7 @@ void xGetButtonInput(void)
     }
 }
 
+//Draw wrapper function that throws a message in case of drawing errors.
 void checkDraw(unsigned char status, const char *msg)
 {
     if (status) {
@@ -270,6 +275,7 @@ void checkDraw(unsigned char status, const char *msg)
     }
 }
 
+//Draws FPS on the screen.
 void vDrawFPS(void)
 {
     static unsigned int periods[FPS_AVERAGE_COUNT] = { 0 };
@@ -324,6 +330,7 @@ void vDrawFPS(void)
     tumFontSelectFontFromHandle(cur_font);
     tumFontPutFontHandle(cur_font);
 }
+//Sound playing functions.
 void vPlayShipShotSound()
 {
     tumSoundPlaySample(c3);
@@ -344,8 +351,9 @@ void vPlayBulletSound()
 {
     tumSoundPlaySample(a3);
 }
-
-void vSetMainMenuBufferValues()
+/** Set-Functions */
+///  These functions are usually declared in the code block previous to the running loops of tasks.
+void vSetMainMenuBufferValues() ///Ex: Initialize values within the MainMenuInfoBuffer global struct.
 {
     xSemaphoreTake(MainMenuInfoBuffer.lock, portMAX_DELAY);
         MainMenuInfoBuffer.CreaturesEasyImages[0] = CreaturesEasy_MenuScaled_0;
@@ -557,6 +565,7 @@ void vSetAnimationsBufferValues()
     xSemaphoreGive(AnimationsBuffer.lock);
 }
 
+//Changes which MotherShip Image being used depending on Single or Multi- Player
 void vPrepareImageSaucer(unsigned short* ImageSaucerIndex)
 {
     xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
@@ -566,7 +575,7 @@ void vPrepareImageSaucer(unsigned short* ImageSaucerIndex)
             (*ImageSaucerIndex) = 1;
     xSemaphoreGive(PlayerInfoBuffer.lock);
 }
-
+//Resets Player Values depending on the type of game being created
 void vPrepareGameValues(TypesOfNewGames_t TypeOfNewGame)
 { 
     if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -619,15 +628,7 @@ void vPrepareGameValues(TypesOfNewGames_t TypeOfNewGame)
     }
 }
 
-void vUpdatePlayerScoreCreatureKilled(unsigned char CreatureID)
-{
-    static unsigned char AddOn=0;
-    AddOn = xFetchCreatureValue(CreatureID);
-    PlayerInfoBuffer.Score+=AddOn;
-    if(PlayerInfoBuffer.FreshGame==1 || PlayerInfoBuffer.Score > PlayerInfoBuffer.HiScore)
-        PlayerInfoBuffer.HiScore=PlayerInfoBuffer.Score;
-}
-
+//Draws Player Score and High Score
 void vDrawStaticTexts(void)
 {
     char Score_1[20];   
@@ -668,6 +669,7 @@ void vDrawStaticTexts(void)
     }
 }
 
+//Draws the animated creatures and their respective point values on the screen
 void vDrawPointsExplanation(unsigned char ImageAnimationIndex)
 {
     char EasyPointsChar[20];   
@@ -739,6 +741,7 @@ void vDrawPointsExplanation(unsigned char ImageAnimationIndex)
                 }
 }
 
+//Draws Space Invaders Image on the screen
 void vDrawSpaceInvadersBanner()
 {
     checkDraw(tumDrawLoadedImage(TitleScreen,
@@ -747,6 +750,7 @@ void vDrawSpaceInvadersBanner()
                                  __FUNCTION__);
 }
 
+//Draws Main Menu Options on the screen
 void vDrawMainMenuOptions(void)
 {
     static char SingleplayerChar[20];
@@ -799,6 +803,7 @@ void vDrawMainMenuOptions(void)
     }
 }
 
+//Checks for User's Enter Input
 unsigned char xCheckEnterPressed()
 {
     if(xSemaphoreTake(buttons.lock, 0)==pdTRUE){
@@ -815,6 +820,7 @@ unsigned char xCheckEnterPressed()
     }
     return 0;
 }
+//Checks for User's UP/DOWN Input, changing highlighted displayed options in Menu
 void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
@@ -840,6 +846,8 @@ void  xCheckMenuSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
         xSemaphoreGive(buttons.lock);                                                                                                                                                                
     }   
 }
+
+/**BEGIN - Main Menu Task */
 void vTaskMainMenu(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -847,11 +855,14 @@ void vTaskMainMenu(void *pvParameters)
     const TickType_t UpdatePeriod = 20;
     const TickType_t AnimationPeriod = 400;
    
+    //Debouncing variables
     unsigned char UP_DEBOUNCE_STATE = 0;
     unsigned char DOWN_DEBOUNCE_STATE = 0;
 
+    //Index used to toggle images for animation purposes
     unsigned char ImageAnimationIndex=0;
 
+    //Set functions used to initialize relevant global structs
     vSetMainMenuLoadedImages() ;
     vSetPlayersInfoBufferValues();
     vSetMainMenuBufferValues();
@@ -859,13 +870,13 @@ void vTaskMainMenu(void *pvParameters)
 
     while (1) {
         xGetButtonInput(); 
-        xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE, 
+        xCheckMenuSelectionChange(&UP_DEBOUNCE_STATE,   //Moves highlighting of current users selection 
                                   &DOWN_DEBOUNCE_STATE);
 
-        if(xCheckEnterPressed())
-                vHandleStateMachineActivation();
+        if(xCheckEnterPressed()) //if Enter is pressed, user chose an option
+                vHandleStateMachineActivation(); //!Goes to a pre-handler of the State Machine task.
 
-        if(xTaskGetTickCount() - xPrevAnimatedTime > AnimationPeriod){
+        if(xTaskGetTickCount() - xPrevAnimatedTime > AnimationPeriod){ //Controls Animation of figures on screen
             ImageAnimationIndex=!ImageAnimationIndex; 
             xPrevAnimatedTime = xTaskGetTickCount();
         }
@@ -875,10 +886,10 @@ void vTaskMainMenu(void *pvParameters)
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
 
                     tumDrawClear(Black); 
-                    vDrawStaticTexts();
-                    vDrawPointsExplanation(ImageAnimationIndex);
+                    vDrawStaticTexts(); //Draws Scores
+                    vDrawPointsExplanation(ImageAnimationIndex);//Draws Animated enemies and their point values
                     vDrawSpaceInvadersBanner();
-                    vDrawMainMenuOptions();
+                    vDrawMainMenuOptions();//Draws players options
                     vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
@@ -888,6 +899,7 @@ void vTaskMainMenu(void *pvParameters)
         }
 }
 
+//Draws possible keyboard inputs in the game
 void vDrawInstructionsWithinGame()
 {
     char ResetGameChar[40];
@@ -926,6 +938,8 @@ void vDrawInstructionsWithinGame()
                                           __FUNCTION__);
     }
 }
+
+//Draws current level on the screen
 void vDrawLevel()
 {
     static char str[20] = { 0 };
@@ -943,6 +957,8 @@ void vDrawLevel()
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+//Draws players lives on the screen
 void vDrawLives()
 {   
     static char str[100] = { 0 };
@@ -960,6 +976,7 @@ void vDrawLives()
                               __FUNCTION__);
 }
 
+//Draws a single creature, will be called within a loop to draw all creatures
 void vDrawSingleCreature(unsigned char creatureID)
 {    
     if(CreaturesBuffer.Creatures[creatureID].Position)
@@ -974,6 +991,7 @@ void vDrawSingleCreature(unsigned char creatureID)
                                      __FUNCTION__); 
 }
 
+//Draws Saucer-Shot-Animation on screen
 void vDrawSaucerDestruction()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
@@ -985,6 +1003,7 @@ void vDrawSaucerDestruction()
     }
 }
 
+//Draws the Saucer/Mothership
 void vDrawSaucer()
 {
     if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
@@ -996,6 +1015,7 @@ void vDrawSaucer()
     }
 }
 
+//Draws Wall-Shot-Animation on screen
 void vDrawWallShot()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
@@ -1007,6 +1027,7 @@ void vDrawWallShot()
     }
 }
 
+//Draws Creatures-Shot-Animation on screen
 void vDrawCreatureDestruction()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,0)==pdTRUE){
@@ -1017,6 +1038,8 @@ void vDrawCreatureDestruction()
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+//Draws Creatures on screen
 void vDrawCreatures()
 {
     unsigned char CreatureCountID=0;
@@ -1031,6 +1054,8 @@ void vDrawCreatures()
         xSemaphoreGive(CreaturesBuffer.lock);
     }
 }
+
+//Alternates Creatures images for animation purposes
 void vAnimateCreatures()
 {
     unsigned char creatureIDcount = 0;
@@ -1042,12 +1067,14 @@ void vAnimateCreatures()
     }
 
 }
+
+//Draws all bunkers
 void vDrawBunkers()
 {
     if(xSemaphoreTake(BunkersBuffer.lock, 0)==pdTRUE){  
 
         if(BunkersBuffer.Bunkers->b1Lives>0)
-            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b1Lives],
+            checkDraw(tumDrawLoadedImage(BunkersBuffer.ImagesCatalog[5 - BunkersBuffer.Bunkers->b1Lives], //Each image in image catalog represents a state of the bunker
                                          BunkersBuffer.Bunkers->b1->x_pos - BunkersBuffer.Bunkers->b1->size/2,
                                          BunkersBuffer.Bunkers->b1->y_pos - BunkersBuffer.Bunkers->b1->size/2),
                                          __FUNCTION__);
@@ -1073,6 +1100,8 @@ void vDrawBunkers()
         xSemaphoreGive(BunkersBuffer.lock);
     }
 }
+
+//Draws lower green wall
 void vDrawLowerWall()
 {
     checkDraw(tumDrawLine(0, BOTTOM_WALLPOSITION,
@@ -1080,6 +1109,8 @@ void vDrawLowerWall()
                           BOTTOM_WALLTHICKNESS,Green),
                           __FUNCTION__);
 }
+
+//Draws Players Ship
 void vDrawShip()
 {
     if(xSemaphoreTake(ShipBuffer.lock,0)==pdTRUE){
@@ -1090,6 +1121,8 @@ void vDrawShip()
         xSemaphoreGive(ShipBuffer.lock);
     }
 }
+
+//Check for Space Input
 unsigned char xCheckShipShoot(unsigned char* SPACE_DEBOUNCE_STATE)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -1105,6 +1138,8 @@ unsigned char xCheckShipShoot(unsigned char* SPACE_DEBOUNCE_STATE)
     }
     return 0;    
 }
+
+//Check for left and right arrow key inputs
 unsigned char xCheckShipMoved(signed short* LatestShipX)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -1135,6 +1170,7 @@ unsigned char xCheckShipMoved(signed short* LatestShipX)
     return 0;
 }
 
+//Checks for Creatures Bullet still being "alive" and wakes/triggers the task responsible for its control
 void vTriggerCreaturesBulletControl()
 {
    if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
@@ -1144,6 +1180,8 @@ void vTriggerCreaturesBulletControl()
        xTaskNotify(CreaturesBulletControlTask, 0x01, eSetValueWithOverwrite);
    }
 }
+
+//Checks for Players Bullet still being "alive" and wakes/triggers the task responsible for its control
 void vTriggerShipBulletControl()
 {
     if(xSemaphoreTake(ShipBuffer.lock, 0)==pdTRUE){
@@ -1154,6 +1192,8 @@ void vTriggerShipBulletControl()
     }
     xSemaphoreGive(ShipBuffer.lock);
 }
+
+//Activates/Begins/Puts in motion the Animation of a life being lost
 void vActivateLivesAnimationState()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1161,6 +1201,8 @@ void vActivateLivesAnimationState()
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+/**Being-Shot Control Task - Player Ship*/
 void vTaskShipShotControl(void *pvParameters)
 {
     while(1){
@@ -1177,6 +1219,7 @@ void vTaskShipShotControl(void *pvParameters)
     }
 }
 
+//Controls Creatures speed after killing one of them
 void vSpeedCreaturesControl(unsigned char* NumberOfCreaturesKilled)
 {
     if(xSemaphoreTake(LevelModifiersBuffer.lock, 0)==pdTRUE){
@@ -1194,6 +1237,17 @@ void vSpeedCreaturesControl(unsigned char* NumberOfCreaturesKilled)
     }
 }
 
+//Updates Player Score after hitting Creature
+void vUpdatePlayerScoreCreatureKilled(unsigned char CreatureID)
+{
+    static unsigned char AddOn=0;
+    AddOn = xFetchCreatureValue(CreatureID);
+    PlayerInfoBuffer.Score+=AddOn;
+    if(PlayerInfoBuffer.FreshGame==1 || PlayerInfoBuffer.Score > PlayerInfoBuffer.HiScore)
+        PlayerInfoBuffer.HiScore=PlayerInfoBuffer.Score;
+}
+
+//Controls Player Score after hitting Creature
 void vCreatureScoreControl(unsigned char CreatureCollisionID)
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1202,6 +1256,7 @@ void vCreatureScoreControl(unsigned char CreatureCollisionID)
     }
 }
 
+//Activates/Begins/Puts in motion the Animation of a creature being shot
 void vActivateCreatureDestroyedAnimationState(unsigned char CreatureCollisionID, creature_t* Creatures)
 {
     signed short DeadCreatureX,DeadCreatureY;
@@ -1214,6 +1269,7 @@ void vActivateCreatureDestroyedAnimationState(unsigned char CreatureCollisionID,
     }
 }
 
+/**Being-Shot Control Task - Creatures*/
 void vTaskCreaturesShotControl(void *pvParameters)
 {
     unsigned char NumberOfCreaturesKilled=0;
@@ -1228,9 +1284,9 @@ void vTaskCreaturesShotControl(void *pvParameters)
                                                 CreaturesBuffer.Creatures);
 
                 vPlayDeadCreatureSound();
-                vCreatureScoreControl(CreatureCollisionID);
-                vControlNewLivesAddition();
-                vSpeedCreaturesControl(&NumberOfCreaturesKilled);
+                vCreatureScoreControl(CreatureCollisionID); //Updates Score depending on creature-type shot
+                vControlNewLivesAddition();//Check if player "deserves" new lives
+                vSpeedCreaturesControl(&NumberOfCreaturesKilled);//Adjusts new speed setting given killed creature
                 vActivateCreatureDestroyedAnimationState(CreatureCollisionID, CreaturesBuffer.Creatures);
                 xSemaphoreGive(CreaturesBuffer.lock);
             }
@@ -1238,6 +1294,7 @@ void vTaskCreaturesShotControl(void *pvParameters)
     }
 }
 
+/**Creatures Crashed-into-Bunker Control Task*/
 void vTaskBunkerCreaturesCrashed(void *pvParameters)
 {
     while(1){
@@ -1254,6 +1311,8 @@ void vTaskBunkerCreaturesCrashed(void *pvParameters)
     
     }
 }
+
+/**Being-Shot Control Task - Bunker*/
 void vTaskBunkerShotControl(void *pvParameters)
 {
     while(1){
@@ -1262,15 +1321,16 @@ void vTaskBunkerShotControl(void *pvParameters)
        if(xTaskNotifyWait(0x00, 0xffffffff, &BunkerCollisionID, portMAX_DELAY)==pdTRUE){
            if(xSemaphoreTake(BunkersBuffer.lock,portMAX_DELAY)==pdTRUE){
                 vPlayBunkerShotSound();
-                vUpdateBunkersStatus(BunkersBuffer.Bunkers, 
+                vUpdateBunkersStatus(BunkersBuffer.Bunkers, //Reduces "life points" of hit bunker
                                      BunkerCollisionID);
                 xSemaphoreGive(BunkersBuffer.lock);
            }
        }
     
     }
-
 }
+
+//Activates/Begins/Puts in motion the Animation of the Wall being shot
 void vActivateWallShotAnimationState()
 {
     if(xSemaphoreTake(AnimationsBuffer.lock,portMAX_DELAY)==pdTRUE){
@@ -1279,6 +1339,8 @@ void vActivateWallShotAnimationState()
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+//Activates/Begins/Puts in motion the Animation of the Saucer being shot
 void vActivateSaucerShotAnimationState(saucer_t* saucer)
 {
     signed short DeadSaucerX, DeadSaucerY;
@@ -1290,6 +1352,8 @@ void vActivateSaucerShotAnimationState(saucer_t* saucer)
         xSemaphoreGive(AnimationsBuffer.lock);
     }
 }
+
+//Updates Player Score after hitting Saucer
 void vSaucerScoreControl()
 {
     unsigned char AddOn = xFetchSaucerValue();
@@ -1301,6 +1365,7 @@ void vSaucerScoreControl()
     }
 }
 
+//Suspends Saucer tasks in order to reduce load after saucer is killed
 void vSuspendSaucerTasks()
 {
     if(SaucerActionControlTask) vTaskSuspend(SaucerActionControlTask);
@@ -1308,6 +1373,7 @@ void vSuspendSaucerTasks()
     if(SaucerAIControlTask) vTaskSuspend(SaucerAIControlTask);
 }
 
+/**Being-Shot Control Task - Saucer/Mothership*/
 void vTaskSaucerShotControl(void *pvParameters)
 {
     while(1){
@@ -1315,9 +1381,9 @@ void vTaskSaucerShotControl(void *pvParameters)
         if(xTaskNotifyWait(0x00, 0xffffffff, &SaucerCollisionID, portMAX_DELAY)==pdTRUE){
             if(xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY)==pdTRUE){
 
-                vKillSaucer(&SaucerBuffer.SaucerHitFlag, &SaucerBuffer.SaucerAppearsFlag);
+                vKillSaucer(&SaucerBuffer.SaucerHitFlag, &SaucerBuffer.SaucerAppearsFlag); //Update Flags to indicate saucer has been shot
                 vSuspendSaucerTasks();
-                vSaucerScoreControl();
+                vSaucerScoreControl();//Add Corresponding score increase with saucer shot
                 vPlayDeadCreatureSound();
                 vActivateSaucerShotAnimationState(SaucerBuffer.saucer);
 
@@ -1327,6 +1393,8 @@ void vTaskSaucerShotControl(void *pvParameters)
     }
 }
 
+
+/**Bullet Control Task - Ship*/
 void vTaskShipBulletControl(void *pvParameters)
 {
     static unsigned char TopWallCollisionFlag=0;
@@ -1413,8 +1481,10 @@ void vTaskShipBulletControl(void *pvParameters)
     }
 
 }
+/**Bullet Control Task - Creature*/
 void vTaskCreaturesBulletControl(void *pvParameters)
 {
+    //Flags used to store values that indicate possible collision with game objects
     static unsigned char BottomWallCollisionFlag=0;
     static unsigned char BunkerCollisionFlag=0;
     static unsigned char ShipCollisonFlag=0;
@@ -1425,7 +1495,7 @@ void vTaskCreaturesBulletControl(void *pvParameters)
                 if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
                     if(xSemaphoreTake(ShipBuffer.lock, 0)){ 
 
-                        vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet);
+                        vUpdateCreaturesBulletPos(&CreaturesBuffer.CreaturesBullet); //Updates Creatures Bullet Position according to its current speed
 
                         BottomWallCollisionFlag = xCheckCreaturesBulletCollisonBottomWall(CreaturesBuffer.CreaturesBullet.y_pos);
 
@@ -1437,19 +1507,19 @@ void vTaskCreaturesBulletControl(void *pvParameters)
                                                                               CreaturesBuffer.CreaturesBullet.y_pos,
                                                                               ShipBuffer.Ship);
 
-                        if(BottomWallCollisionFlag || BunkerCollisionFlag || ShipCollisonFlag){
+                        if(BottomWallCollisionFlag || BunkerCollisionFlag || ShipCollisonFlag){ //In case of any positive outcome -> there was collision
                             CreaturesBuffer.BulletAliveFlag=0;
 
                             if(BottomWallCollisionFlag)
                                 vPlayBulletWallSound();
 
                             else if(BunkerCollisionFlag){
-                                vTaskResume(BunkerShotControlTask);
-                                xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite);
+                                vTaskResume(BunkerShotControlTask); //Wakes and notifies task responsible for Bunker-being-Shot control
+                                xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite); //Sends Flag value to said task, as it contains which Bunker was shot
                             }
                             else if(ShipCollisonFlag){  
-                                vTaskResume(ShipShotControlTask);
-                                xTaskNotify(ShipShotControlTask, (uint32_t)ShipCollisonFlag, eSetValueWithOverwrite);
+                                vTaskResume(ShipShotControlTask); //Wakes and notifies task responsible for Ship-being-Shot control
+                                xTaskNotify(ShipShotControlTask, (uint32_t)ShipCollisonFlag, eSetValueWithOverwrite); 
                             }
                         }
                         xSemaphoreGive(ShipBuffer.lock);
@@ -1460,6 +1530,7 @@ void vTaskCreaturesBulletControl(void *pvParameters)
     }
 }
 
+//Control Left and Right movement and also updates if creatures have reached an edge(number of laps)
 void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures,
                                 unsigned char* NumberOfLaps)
 {
@@ -1469,6 +1540,7 @@ void vHorizontalCreatureControl(H_Movement_t* LastHorizontalDirectionOfCreatures
         (*NumberOfLaps)++;
 }
 
+//Checks if creatures have already reached an edge, which in that case will order a vertical shift down
 void vVerticalCreatureControl(unsigned char* NumberOfLaps)
 {
     if((*NumberOfLaps) == 1){
@@ -1476,6 +1548,8 @@ void vVerticalCreatureControl(unsigned char* NumberOfLaps)
         vMoveCreaturesVerticalDown(CreaturesBuffer.Creatures);
     }
 }
+
+//Checks for Creatures reaching bunker height and wakes/triggers the task responsible for it 
 void vTriggerCreaturesBunkerDestruction()
 {
     static unsigned char BunkerCreatureCollisionID=0;
@@ -1491,9 +1565,10 @@ void vTriggerCreaturesBunkerDestruction()
         }
     }
 }
+
+//Controls when creatures are allowed to shoot and initiates their bullet creation
 void vCreaturesInitiateShoot(TickType_t* xPrevShotTime, TickType_t* ShootingPeriod)
 {
-
     if(xTaskGetTickCount() - (*xPrevShotTime) >= (*ShootingPeriod) &&
         CreaturesBuffer.BulletAliveFlag==0 &&
         CreaturesBuffer.NumbOfAliveCreatures>0){
@@ -1508,6 +1583,8 @@ void vCreaturesInitiateShoot(TickType_t* xPrevShotTime, TickType_t* ShootingPeri
         (*xPrevShotTime) = xTaskGetTickCount();
     }
 }
+
+/**CreatureControl Task*/
 void vTaskCreaturesActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -1551,6 +1628,7 @@ void vTaskCreaturesActionControl(void *pvParameters)
     }
 }
 
+/**SaucerControl Tasks - SinglePlayer */
 void vTaskSaucerActionControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -1583,17 +1661,20 @@ void vTaskSaucerActionControl(void *pvParameters)
     }
 }
 
+/**SaucerControl Tasks - AI */
 void vTaskSaucerAIControl(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t WakeRate = 15;
     const TickType_t xSecondMeasure = 1000;
-
-    TickType_t xPrevAppearanceTime = xTaskGetTickCount();
-    TickType_t xPrevDisAppearanceTime = xTaskGetTickCount();
+   
+    //These variables control the disappearance and appearance times, which here are different
+    TickType_t xPrevAppearanceTime = xTaskGetTickCount(); 
+    TickType_t xPrevDisAppearanceTime = xTaskGetTickCount(); 
     const TickType_t xDisappearancePeriod = 10*xSecondMeasure;
     const TickType_t AppearancePeriod = 20*xSecondMeasure;
 
+    //Thse make possible the counting of the timers to be done in series, not simulataneously
     unsigned char AppearPeriodDone=1;
     unsigned char DisAppearPeriodDone=0;
 
@@ -1601,7 +1682,7 @@ void vTaskSaucerAIControl(void *pvParameters)
 
     while(1){
         if(xSemaphoreTake(SaucerBuffer.lock,0)==pdTRUE){
-            if(SaucerBuffer.SaucerHitFlag==0){
+            if(SaucerBuffer.SaucerHitFlag==0){ //If Saucer has not been hit
                 if(AppearPeriodDone==1 && 
                    DisAppearPeriodDone==0 && 
                    xTaskGetTickCount() - xPrevDisAppearanceTime >= xDisappearancePeriod){
@@ -1624,8 +1705,8 @@ void vTaskSaucerAIControl(void *pvParameters)
 
 
                 if(SaucerBuffer.SaucerAppearsFlag==1){
-                    xCheckUDPInput(&SaucerBuffer.saucer->x_pos);
-                    xCheckAISaucerBorder(SaucerBuffer.saucer, SaucerBuffer.Direction);
+                    xCheckUDPInput(&SaucerBuffer.saucer->x_pos);//Check for UDP-Incoming commands to move AI Saucer
+                    xCheckAISaucerBorder(SaucerBuffer.saucer, SaucerBuffer.Direction);//If Saucer stuck at border/edge move it around the scren
                 }
             }
 
@@ -1637,6 +1718,8 @@ void vTaskSaucerAIControl(void *pvParameters)
     }
 }
 
+/**Retrieve Functions */
+///Check and make a copy of the latest flags/values of certain global structs to then trigger necessary in-game events.
 void xRetrieveAIModeStatus(unsigned char* AIModeFlag)
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1725,6 +1808,7 @@ void xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
     }
 }
 
+//Checks if player is allowed to shoot, creates player bullet if condition is met
 void vActivateShipBulletFlags()
 {
     if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
@@ -1737,6 +1821,7 @@ void vActivateShipBulletFlags()
     }
 }
 
+// Controls the Saucer/Mothership has-been-shot animation
 void vControlSaucerShotAnimation()
 {
     const TickType_t SaucerShotAnimationTime = 250;
@@ -1758,6 +1843,7 @@ void vControlSaucerShotAnimation()
     }
 }
 
+//Controls the bullet-hit-top-wall animation
 void vControlTopWallShotAnimation()
 {
     const TickType_t WallShotAnimationTime = 130;
@@ -1779,6 +1865,7 @@ void vControlTopWallShotAnimation()
     }
 }
 
+//Controls the lives lost animation when player has been shot
 void vControlLivesRedAnimation()
 {
     const TickType_t LivesAnimationsTime = 1200;
@@ -1800,6 +1887,7 @@ void vControlLivesRedAnimation()
     }
 }
 
+//Controls the creature-has-been-shot animation on screen
 void vControlCreaturesShotAnimation()
 {
     const TickType_t DeadCreatureAnimationTime = 250;
@@ -1821,6 +1909,7 @@ void vControlCreaturesShotAnimation()
     }
 }
 
+//Controls the new lifes given to player and its corresponding animaton
 void vControlNewLivesAddition()
 {
     if(xSemaphoreTake(PlayerInfoBuffer.lock,0)==pdTRUE){
@@ -1833,6 +1922,7 @@ void vControlNewLivesAddition()
     }
 }
 
+//Check if player has lost all his lives
 unsigned char xCheckLivesLeft()
 {
     if (xSemaphoreTake(PlayerInfoBuffer.lock, 0) == pdTRUE){
@@ -1849,6 +1939,8 @@ unsigned char xCheckLivesLeft()
     }
     return 0;
 }
+//
+//Check for Pause Input
 unsigned char xCheckPausePressed()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
@@ -1866,6 +1958,7 @@ unsigned char xCheckPausePressed()
     return 0;
 }
 
+//Check for Reset Input
 unsigned char xCheckResetPressed()
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE){
@@ -1883,6 +1976,7 @@ unsigned char xCheckResetPressed()
     return 0;
 }
 
+//Check if all creatures are dead
 unsigned char  xCheckCreaturesLeft()
 {
     if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
@@ -1892,7 +1986,7 @@ unsigned char  xCheckCreaturesLeft()
                 OutsideGameActionsBuffer.PlayerOutsideGameActions = WonGameAction;
                 xSemaphoreGive(OutsideGameActionsBuffer.lock);
             }
-            return 1;
+            return 1;//Won Level
         }
         xSemaphoreGive(CreaturesBuffer.lock);
         return 0;
@@ -1900,6 +1994,7 @@ unsigned char  xCheckCreaturesLeft()
     return 0;
 }
 
+//Checks if any of the bottom-most creatures have reached the bottom of the screen
 unsigned char xCheckCreaturesReachedBottom()
 {
     if(xSemaphoreTake(CreaturesBuffer.lock, 0)==pdTRUE){
@@ -1918,35 +2013,40 @@ unsigned char xCheckCreaturesReachedBottom()
     return 0;
 }
 
+//Pauses and Resumes AI communication
 void vToggleAICommunication(unsigned char* SaucerAppearsFlag, unsigned char* LastSaucerAppearsFlag)
 {
-    if((*SaucerAppearsFlag)!=(*LastSaucerAppearsFlag)){
+    if((*SaucerAppearsFlag)!=(*LastSaucerAppearsFlag)){ //If Last state of flag is different than the newest value -> Toggle
         if(PauseResumeAIQueue)
             xQueueSend(PauseResumeAIQueue, SaucerAppearsFlag, 0);
         (*LastSaucerAppearsFlag) = (*SaucerAppearsFlag);
     }
 }
 
+/**Main Playing Game Task*/
 void vTaskPlayingGame(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    static unsigned char SPACE_DEBOUNCE_STATE = 0;
+    static unsigned char SPACE_DEBOUNCE_STATE = 0; //Debounces Shooting
 
-    static unsigned char ShipBulletOnScreenFlag = 0; //if 0 -> No bullet on screen -> player allowed to shoot.
+    static unsigned char ShipBulletOnScreenFlag = 0; //0 -> No bullet on screen -> player allowed to shoot.
     static unsigned char CreaturesBulletOnScreenFlag = 0;
+
     static unsigned char SaucerAppearsFlag = 0;
-    static unsigned char LastSaucerAppearsFlag = 1;
-    static unsigned char CreatureDestroyedAnimationFlag = 0;
+    static unsigned char LastSaucerAppearsFlag = 1;//Used as memory of the SaucerAppearsFlag
+
+    static unsigned char CreatureDestroyedAnimationFlag = 0; //Animation Flags 1->Initiate corresponding Animation
     static unsigned char SaucerDestroyedAnimationFlag = 0;
     static unsigned char WallShotAnimationFlag = 0;
 
-    static unsigned char AIModeFlag=0;
-    static signed short LatestShipX = 0;
+    static unsigned char AIModeFlag=0; //1 -> Player is playing Multiplayer mode, 0-> Singleplayer mode
+    static signed short LatestShipX = 0; //Latest Ship X Coordinate
 
-    xRetrieveAIModeStatus(&AIModeFlag);
+    xRetrieveAIModeStatus(&AIModeFlag); //Retrieves value that indicates which mode player has chosen
 
+    //Set functions used to initialize relevant global structs
     vSetOutsideGameActionsBufferValues();
     vSetShipsBufferValues();
     vSetBunkersBufferValues();
@@ -1954,19 +2054,24 @@ void vTaskPlayingGame(void *pvParameters)
 
     while(1){
         xGetButtonInput();
+
+        //Checks for player inputs or game events that require a state change
         if(xCheckPausePressed() || xCheckLivesLeft() || xCheckResetPressed() || 
            xCheckCreaturesLeft() || xCheckCreaturesReachedBottom())
-            vHandleStateMachineActivation();
+            vHandleStateMachineActivation();  //!Goes to a pre-handler of the State Machine task.
         
         xCheckShipMoved(&LatestShipX);
-        if(AIModeFlag && SaucerAppearsFlag==1)
+        if(AIModeFlag && SaucerAppearsFlag==1) //If Saucer appeared and Multiplayer mode is on -> send latest Ship X to UDP Task
             xQueueSend(ShipPosQueue, &LatestShipX, 0);
+
+        if(AIModeFlag)//If Multiplayer mode is on, toggle (pause/resume) AI communication when saucer appears/disappears
+            vToggleAICommunication(&SaucerAppearsFlag, &LastSaucerAppearsFlag);
 
         if(xCheckShipShoot(&SPACE_DEBOUNCE_STATE) && ShipBulletOnScreenFlag == 0)
             vActivateShipBulletFlags();
 
-        vToggleAICommunication(&SaucerAppearsFlag, &LastSaucerAppearsFlag);
-
+        //Retrieve functions - check and make a copy of the latest flags/values of certain
+        //global structs to then trigger necessary in-game events.
         xRetrieveSaucerAppearsFlag(&SaucerAppearsFlag);
         xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
         xRetrieveCreaturesBulletAliveFlag(&CreaturesBulletOnScreenFlag) ;
@@ -1975,6 +2080,7 @@ void vTaskPlayingGame(void *pvParameters)
         xRetrieveWallShotAnimationFlag(&WallShotAnimationFlag);
 
 
+        //Control Animations of certain events in game.
         vControlLivesRedAnimation();
         vControlCreaturesShotAnimation();
         vControlSaucerShotAnimation();
@@ -1985,17 +2091,18 @@ void vTaskPlayingGame(void *pvParameters)
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
 
                     tumDrawClear(Black);
-                    vDrawStaticTexts();
-                    vDrawShip();                    
-                    vDrawCreatures();
+                    vDrawStaticTexts();//Draws Scores
+                    vDrawShip();//Draws player ship 
+                    vDrawCreatures();//Draws the enemy creatures
 
-                    if(CreaturesBulletOnScreenFlag)
+                    if(CreaturesBulletOnScreenFlag) //if there is a creature bullet alive/on screen -> Wake up Creature bullet Control task
                         vTriggerCreaturesBulletControl();
-                    if(ShipBulletOnScreenFlag)
+                    if(ShipBulletOnScreenFlag) //Same for PlayerShip Bullets
                         vTriggerShipBulletControl();
-                    if(SaucerAppearsFlag)
+                    if(SaucerAppearsFlag)// Only draw saucer if the SaucerAppearFlag has been set by the SaucerControlTask
                         vDrawSaucer();
-                    if(CreatureDestroyedAnimationFlag)
+
+                    if(CreatureDestroyedAnimationFlag) //Only draw animations if their respective flags have been set
                         vDrawCreatureDestruction();
                     if(SaucerDestroyedAnimationFlag)
                         vDrawSaucerDestruction();
@@ -2017,6 +2124,7 @@ void vTaskPlayingGame(void *pvParameters)
     }
 }
 
+//Draws possible Paused Game menu options
 void vDrawInstructionsPausedGame()
 {
     char RestartChar[20];
@@ -2047,6 +2155,7 @@ void vDrawInstructionsPausedGame()
     }
 }
 
+//Checks for User's UP/DOWN Input, changing highlighted displayed options in Game Over Menu
 void  xCheckPauseSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
@@ -2072,28 +2181,30 @@ void  xCheckPauseSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
         xSemaphoreGive(buttons.lock);                                                                                                                                                                
     }   
 }
+
+/**Paused Game Task*/
 void vTaskPausedGame(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char UP_DEBOUNCE_STATE = 0; //Up and Down Arrow key debouncing states
     unsigned char DOWN_DEBOUNCE_STATE = 0;
 
     while(1){
         xGetButtonInput();
-        xCheckPauseSelectionChange(&UP_DEBOUNCE_STATE, 
+        xCheckPauseSelectionChange(&UP_DEBOUNCE_STATE, //Moves highlighting of current users selection
                                   &DOWN_DEBOUNCE_STATE);
         if(xCheckEnterPressed())
-            vHandleStateMachineActivation();
+            vHandleStateMachineActivation(); //!Goes to a pre-handler of the State Machine task.
 
         if(DrawSignal) 
             if(xSemaphoreTake(DrawSignal, portMAX_DELAY)==pdTRUE){
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
             
                     tumDrawClear(Black);
-                    vDrawInstructionsPausedGame();
-                    vDrawStaticTexts();
+                    vDrawInstructionsPausedGame();//Draws possible paused menu options
+                    vDrawStaticTexts();//Draws Scores
                     vDrawLevel();
                     vDrawLives();
                     vDrawFPS(); 
@@ -2106,6 +2217,7 @@ void vTaskPausedGame(void *pvParameters)
     }
 }
 
+//Draws possible Game over menu options
 void vDrawInstructionsGameOver()
 {
     char QuitChar[20];
@@ -2132,6 +2244,8 @@ void vDrawInstructionsGameOver()
                                           __FUNCTION__);
     }
 }
+
+//Draws Game Ove Sign/Banner
 void vDrawGameOverBanner()
 {
     checkDraw(tumDrawLoadedImage(GameOver,
@@ -2140,6 +2254,7 @@ void vDrawGameOverBanner()
                                  __FUNCTION__);
 }
 
+//Checks for User's UP/DOWN Input, changing highlighted displayed options in Game Over Menu
 void  xCheckGameOverSelectionChange(unsigned char* UP_DEBOUNCE_STATE, 
                                 unsigned char* DOWN_DEBOUNCE_STATE)
 {
@@ -2165,6 +2280,8 @@ void  xCheckGameOverSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
         xSemaphoreGive(buttons.lock);                                                                                                                                                                
     }   
 }
+
+/**Game Over Task*/
 void vTaskGameOver(void *pvParameters)
 {
     GameOver = tumDrawLoadImage("../resources/GameOver.bmp");
@@ -2174,16 +2291,16 @@ void vTaskGameOver(void *pvParameters)
 
     vSetGameOverInfoBufferValues();
 
-    unsigned char UP_DEBOUNCE_STATE = 0;
+    unsigned char UP_DEBOUNCE_STATE = 0; //Up and Down Arrow key debouncing states
     unsigned char DOWN_DEBOUNCE_STATE = 0;
 
     while(1){
         xGetButtonInput();
-        xCheckGameOverSelectionChange(&UP_DEBOUNCE_STATE, 
+        xCheckGameOverSelectionChange(&UP_DEBOUNCE_STATE, //Moves highlighting of current users selection 
                                       &DOWN_DEBOUNCE_STATE);
 
         if(xCheckEnterPressed())
-                vHandleStateMachineActivation();
+                vHandleStateMachineActivation(); //!Goes to a pre-handler of the State Machine task.
 
         if(DrawSignal) 
             if(xSemaphoreTake(DrawSignal, portMAX_DELAY)==pdTRUE){
@@ -2191,8 +2308,8 @@ void vTaskGameOver(void *pvParameters)
             
                     tumDrawClear(Black);
                     vDrawGameOverBanner();
-                    vDrawInstructionsGameOver();
-                    vDrawStaticTexts();
+                    vDrawInstructionsGameOver();//Draws possible Game Over Menu options
+                    vDrawStaticTexts();//Draws Scores
                     vDrawLevel();
                     vDrawLives();
                     vDrawFPS(); 
@@ -2205,6 +2322,7 @@ void vTaskGameOver(void *pvParameters)
     }
 }
 
+//Draws "Loading..." on screen
 void vDrawCountDown()
 {
     char CountDownChar[20];
@@ -2220,6 +2338,7 @@ void vDrawCountDown()
     }
 }
 
+//Draws next level Sign/Banner
 void vDrawNextLevelBanner()
 {
     checkDraw(tumDrawLoadedImage(NextLevel,
@@ -2228,19 +2347,22 @@ void vDrawNextLevelBanner()
                                  __FUNCTION__);
 }
 
+/**Go-To-Next-Level Task*/
 void vTaskNextLevel(void *pvParameters)
 {
     NextLevel = tumDrawLoadImage("../resources/NextLevel.bmp");
 
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    TickType_t xCountDown = 0;
+
+    TickType_t xCountDown = 0; //These variables control the countdown, this task only appeards for 10 seconds and then changes to next level
     signed char CountdownInSeconds = 10;
+
     const TickType_t UpdatePeriod = 20;
 
     while(1){
         if(CountdownInSeconds==0){
             CountdownInSeconds=10;
-            vHandleStateMachineActivation();
+            vHandleStateMachineActivation();//!Goes to a pre-handler of the State Machine task.
         }
 
         if(xTaskGetTickCount() - xCountDown >= 1000){
@@ -2266,6 +2388,7 @@ void vTaskNextLevel(void *pvParameters)
     }
 }
 
+//Draws Cheats Menu options
 void vDrawCheatOptions()
 {
     static char InfiniteLivesChar[20];
@@ -2329,6 +2452,7 @@ void vDrawCheatOptions()
     }
 }
 
+//Moves highlighting of current users selection
 void xCheckCheatsSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
                                  unsigned char* DOWN_DEBOUNCE_STATE)
 {
@@ -2355,6 +2479,7 @@ void xCheckCheatsSelectionChange(unsigned char* UP_DEBOUNCE_STATE,
     }
 }
 
+//Increases/Decreases Values shown on the screen, regarding cheat being chosen
 void xCheckLeftRightIncrement(unsigned char* RIGHT_DEBOUNCE_STATE,
                               unsigned char* LEFT_DEBOUNCE_STATE)
 {
@@ -2385,12 +2510,13 @@ void xCheckLeftRightIncrement(unsigned char* RIGHT_DEBOUNCE_STATE,
     }
 }
 
+/**Cheats Task*/
 void vTaskCheats(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t UpdatePeriod = 20;
 
-    TickType_t xInitialDebouncePeriodReference = xTaskGetTickCount();
+    TickType_t xInitialDebouncePeriodReference = xTaskGetTickCount(); //Debounces Enter being pressed from Main Menu to Cheats Task
     const TickType_t InitialDebouncePeriod = 600;
    
     unsigned char UP_DEBOUNCE_STATE = 0;
@@ -2404,15 +2530,16 @@ void vTaskCheats(void *pvParameters)
     while(1){
         xGetButtonInput(); 
          
-        xCheckCheatsSelectionChange(&UP_DEBOUNCE_STATE, 
+        xCheckCheatsSelectionChange(&UP_DEBOUNCE_STATE, //Moves highlighting of current users selection
                                    &DOWN_DEBOUNCE_STATE);
-        xCheckLeftRightIncrement(&RIGHT_DEBOUNCE_STATE,
+
+        xCheckLeftRightIncrement(&RIGHT_DEBOUNCE_STATE, //Increases/Decreases Values shown on the screen, regarding cheat being chosen
                                  &LEFT_DEBOUNCE_STATE);
 
         if(xTaskGetTickCount() - xInitialDebouncePeriodReference > InitialDebouncePeriod)
-            if(xCheckEnterPressed()){
+            if(xCheckEnterPressed()){ //Player has chosen a cheat!
                 xInitialDebouncePeriodReference = xTaskGetTickCount();
-                vHandleStateMachineActivation();
+                vHandleStateMachineActivation();//!Goes to a pre-handler of the State Machine task.
             }
     
         if(DrawSignal)
@@ -2420,8 +2547,8 @@ void vTaskCheats(void *pvParameters)
                 xSemaphoreTake(ScreenLock,portMAX_DELAY);
 
                     tumDrawClear(Black); 
-                    vDrawSpaceInvadersBanner();
-                    vDrawCheatOptions();
+                    vDrawSpaceInvadersBanner();//Draws Spacer Invaders Sign/Banner
+                    vDrawCheatOptions();//Draws Cheat Menu options
 
 
                 xSemaphoreGive(ScreenLock);
@@ -2431,6 +2558,7 @@ void vTaskCheats(void *pvParameters)
     }
 }
 
+//Listens on UDP Receive Port and decodes commands sent from the AI
 void UDPhandler(size_t read_size, char *buffer, void *args)
 {
     OpponentCommands_t NextKEY = NONE;
@@ -2473,6 +2601,7 @@ void UDPhandler(size_t read_size, char *buffer, void *args)
     }
 }
 
+//Reads from the NextKEYQueue where Decoded AI commands are sent to from the UDP Handler function
 unsigned char xCheckUDPInput(signed short* SaucerX)
 {
     static OpponentCommands_t CurrentKEY = { 0 };
@@ -2490,22 +2619,26 @@ unsigned char xCheckUDPInput(signed short* SaucerX)
     return 0; 
 }
 
+/**UDP-CONTROL Task*/
 void vTaskUDPControl(void *pvParameters)
 {
     const TickType_t UpdatePeriod=15;
 
+    //Buffer, string variable used to send messages to the AI
     static char buffer[50];
-    char *addr = NULL; // Loopback
-    in_port_t UDPport = UDP_RECEIVE_PORT;
 
-    signed short CurrentShipX=0;
-    unsigned char PauseResumeSignal;
-    int RelativePosDifference=0;
-    unsigned char ShipBulletOnScreenFlag=0;
+    char *addr = NULL; // Loopback
+    in_port_t UDPport = UDP_RECEIVE_PORT; //UDP receive port
+
+    signed short CurrentShipX=0; //Variable that stores current Ship X
+    unsigned char PauseResumeSignal;//Flag used to control the sending of Pause and Resume to the AI
+    int RelativePosDifference=0; //Relative position difference between AI and Ship
+    unsigned char ShipBulletOnScreenFlag=0;//Flag that stores flag regarding players bullet being alive or not
+
     unsigned char LastShipBulletOnScreenFlagCondition=ShipBulletOnScreenFlag;
 
 
-    UDP_SOC_RECEIVE = aIOOpenUDPSocket(addr, 
+    UDP_SOC_RECEIVE = aIOOpenUDPSocket(addr, //! Instantiating UDP Handler Function to UDP Receiving Port where AI sends messages to
                                        UDPport,
                                        UDP_BUFFER_SIZE,
                                        UDPhandler, 
@@ -2516,21 +2649,21 @@ void vTaskUDPControl(void *pvParameters)
     while(1){
         vTaskDelay(pdMS_TO_TICKS(UpdatePeriod)); 
 
-        if(xQueueReceive(PauseResumeAIQueue, &PauseResumeSignal, 0)==pdTRUE){
+        if(xQueueReceive(PauseResumeAIQueue, &PauseResumeSignal, 0)==pdTRUE){ //If There is a Pause/Resume value
             if(PauseResumeSignal==1)
                 sprintf(buffer, "RESUME"); 
             else
                 sprintf(buffer, "PAUSE"); 
 
-            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer)); //Places on the transmit port the message above
         }
 
-        while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}
+        while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}//If there is a value in the ShipPosQueue, continue executing
 
-            xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag); 
+            xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag);//Retrieves Bullet on Screen Flag -> Means Attacking if Bullet is Alive 
 
             if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
-                RelativePosDifference = SaucerBuffer.saucer->x_pos - (int)CurrentShipX;
+                RelativePosDifference = (int)CurrentShipX - SaucerBuffer.saucer->x_pos; //Calculates relative position difference
 
                 if(RelativePosDifference>0){
                     sprintf(buffer, "+%d", RelativePosDifference);
@@ -2539,12 +2672,13 @@ void vTaskUDPControl(void *pvParameters)
                     sprintf(buffer, "-%d", -RelativePosDifference);
 
 
-                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
+                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));//Places on the transmit port the message above
                 xSemaphoreGive(SaucerBuffer.lock);
+                printf("Example Buffer: %s\n", buffer);
             }
 
 
-            if(ShipBulletOnScreenFlag!=LastShipBulletOnScreenFlagCondition){
+            if(ShipBulletOnScreenFlag!=LastShipBulletOnScreenFlagCondition){ //Only Sends these values if there was a change between agressiveness/passiveness
                 if(ShipBulletOnScreenFlag==1){
                     sprintf(buffer, "ATTACKING"); 
                 }
@@ -2558,6 +2692,7 @@ void vTaskUDPControl(void *pvParameters)
     }
 }
 
+/**Swap Buffers Task*/
 void vSwapBuffers(void *pvParameters)
 {
     TickType_t xLastWakeTime;
@@ -2577,6 +2712,11 @@ void vSwapBuffers(void *pvParameters)
         }
     }
 }
+
+/**HANDLE State Machine Functions */
+///Depending on the Game State different handles are taken, which each of whom 
+///also display different possibilities of state changes.
+///Important: vHandleStateMachineActivation is the Main Handle, begin reading through it
 void vHandleNextLevelStateSM()
 {
         vPrepareGameValues(NewGameNextLevel);
@@ -2685,7 +2825,7 @@ void vHandleMainMenuStateSM()
             case SinglePlayer:
                 xSemaphoreGive(MainMenuInfoBuffer.lock);
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                    PlayerInfoBuffer.PlayerChosenMode=SinglePlayingState; 
+                    PlayerInfoBuffer.PlayerChosenMode=SinglePlayingState; //Necessary for future functions to know which mode the game is in
                     xSemaphoreGive(PlayerInfoBuffer.lock);
                 }
                 if(StateQueue)
@@ -2706,7 +2846,7 @@ void vHandleMainMenuStateSM()
             case MultiPlayer:
                 xSemaphoreGive(MainMenuInfoBuffer.lock);
                 if(xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY)==pdTRUE){
-                    PlayerInfoBuffer.PlayerChosenMode=MultiPlayingState; 
+                    PlayerInfoBuffer.PlayerChosenMode=MultiPlayingState; //Necessary for future functions to know which mode the game is in
                     xSemaphoreGive(PlayerInfoBuffer.lock);
                 }
                 if(StateQueue)
@@ -2753,6 +2893,7 @@ void vHandleCheatsStateSM()
     }
 }
 
+//Main Handle - This is the point of entry where the appropiate "vHandle" function will be chosen according to the game state
 void vHandleStateMachineActivation()
 {
     if(xSemaphoreTake(GameStateBuffer.lock, portMAX_DELAY)==pdTRUE){  
@@ -2793,6 +2934,7 @@ void vHandleStateMachineActivation()
     }
 }
 
+//Function that deletes and creates important Tasks relevant to a new game situation
 void vRecreateGame()
 {
     if(CreaturesActionControlTask){ 
@@ -2829,6 +2971,7 @@ void vRecreateGame()
     }
 }
 
+/**State Machine Task */
 void vTaskStateMachine(void *pvParameters){
     unsigned char current_state = BEGIN;
     unsigned char changed_state = 1;
