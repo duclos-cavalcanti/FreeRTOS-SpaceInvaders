@@ -63,8 +63,6 @@ static TaskHandle_t SaucerAIControlTask = NULL;
 static TaskHandle_t SwapBuffers = NULL;
 static TaskHandle_t StateMachine = NULL;
 
-#define STATE_DEBOUNCE_DELAY 250
-#define STATE_QUEUE_LENGTH 1
 ///Queues
 static QueueHandle_t StateQueue = NULL;
 static QueueHandle_t NextKEYQueue = NULL;
