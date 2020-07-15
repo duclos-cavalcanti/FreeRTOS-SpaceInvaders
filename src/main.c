@@ -1522,6 +1522,7 @@ void vTaskCreaturesBulletControl(void *pvParameters)
                                 xTaskNotify(BunkerShotControlTask, (uint32_t)BunkerCollisionFlag, eSetValueWithOverwrite); //Sends Flag value to said task, as it contains which Bunker was shot
                             }
                             else if(ShipCollisonFlag){  
+                                ShipCollisonFlag=0;
                                 vTaskResume(ShipShotControlTask); //Wakes and notifies task responsible for Ship-being-Shot control
                                 xTaskNotify(ShipShotControlTask, (uint32_t)ShipCollisonFlag, eSetValueWithOverwrite); 
                             }
@@ -1820,7 +1821,7 @@ void xRetrieveShipBulletAliveFlag(unsigned char* ShipBulletOnScreenFlag)
 //Checks if player is allowed to shoot, creates player bullet if condition is met
 void vActivateShipBulletFlags()
 {
-    if(xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY)==pdTRUE){
+    if(xSemaphoreTake(ShipBuffer.lock, 0)==pdTRUE){
         if(ShipBuffer.BulletCrashed == 0 && ShipBuffer.Ship->bullet->BulletAliveFlag == 0){
             CreateShipBullet(ShipBuffer.Ship);
             ShipBuffer.Ship->bullet->BulletAliveFlag=1;
