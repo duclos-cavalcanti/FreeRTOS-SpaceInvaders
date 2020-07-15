@@ -101,14 +101,14 @@ unsigned char xCheckSaucerCollision(saucer_t* saucer,
 /**
  * @brief Dedicated function for the AI Saucer that wraps around its movement in case its stuck at border
  * 
- * Using the boundaries of the saucers dimensions together with the knowledge of its current moving direction, the
- * function determines if the players bullet is in fact colliding or about to collide with the enemy saucer.
+ * Using the boundaries of the saucers dimensions together with the knowledge of its current x coordinate, the
+ * function determines if the enemy saucer finds itself stuck at a border, if so, resets its position at the
+ * opposite side of the screen.
  *
  * @param saucer pointer to saucer_t that contains all relevant information to the saucer
- * @param CurrentDirection Enum type variable that shows which direction the saucer is moving currently
  * @return void
  */
-void xCheckAISaucerBorder(saucer_t* saucer, H_Movement_t CurrentDirection);
+void xCheckAISaucerBorder(saucer_t* saucer);
 
 
 /**

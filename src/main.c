@@ -70,6 +70,7 @@ static QueueHandle_t StateQueue = NULL;
 static QueueHandle_t NextKEYQueue = NULL;
 static QueueHandle_t PauseResumeAIQueue = NULL;
 static QueueHandle_t ShipPosQueue = NULL;
+static QueueHandle_t SaucerPosQueue = NULL;
 
 ///Images
 static image_handle_t TitleScreen = NULL;
@@ -1680,6 +1681,8 @@ void vTaskSaucerAIControl(void *pvParameters)
     unsigned char AppearPeriodDone=1;
     unsigned char DisAppearPeriodDone=0;
 
+    unsigned short LatestSaucerX=0;
+
     vSetSaucerBufferValues();
 
     while(1){
@@ -1708,7 +1711,10 @@ void vTaskSaucerAIControl(void *pvParameters)
 
                 if(SaucerBuffer.SaucerAppearsFlag==1){
                     xCheckUDPInput(&SaucerBuffer.saucer->x_pos);//Check for UDP-Incoming commands to move AI Saucer
-                    xCheckAISaucerBorder(SaucerBuffer.saucer, SaucerBuffer.Direction);//If Saucer stuck at border/edge move it around the scren
+                    xCheckAISaucerBorder(SaucerBuffer.saucer);//If Saucer stuck at border/edge move it around the screen
+                    LatestSaucerX=SaucerBuffer.saucer->x_pos;
+                    if(SaucerPosQueue)
+                        xQueueSend(SaucerPosQueue, &LatestSaucerX, 0);
                 }
             }
 
@@ -2614,8 +2620,7 @@ unsigned char xCheckUDPInput(signed short* SaucerX)
         vMoveSaucerRight(SaucerBuffer.saucer);
     }
     else if(CurrentKEY == DEC){
-        if(SaucerBuffer.saucer->x_pos > SAUCER_WIDTH/2)
-            vMoveSaucerLeft(SaucerBuffer.saucer);
+        vMoveSaucerLeft(SaucerBuffer.saucer);
     }
         
     return 0; 
@@ -2632,7 +2637,9 @@ void vTaskUDPControl(void *pvParameters)
     char *addr = NULL; // Loopback
     in_port_t UDPport = UDP_RECEIVE_PORT; //UDP receive port
 
+    signed short CurrentSaucerX=0; //Variable that stores current Saucer X
     signed short CurrentShipX=0; //Variable that stores current Ship X
+
     unsigned char PauseResumeSignal;//Flag used to control the sending of Pause and Resume to the AI
     int RelativePosDifference=0; //Relative position difference between AI and Ship
     unsigned char ShipBulletOnScreenFlag=0;//Flag that stores flag regarding players bullet being alive or not
@@ -2651,33 +2658,21 @@ void vTaskUDPControl(void *pvParameters)
     while(1){
         vTaskDelay(pdMS_TO_TICKS(UpdatePeriod)); 
 
-        if(xQueueReceive(PauseResumeAIQueue, &PauseResumeSignal, 0)==pdTRUE){ //If There is a Pause/Resume value
-            if(PauseResumeSignal==1)
-                sprintf(buffer, "RESUME"); 
-            else
-                sprintf(buffer, "PAUSE"); 
-
-            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer)); //Places on the transmit port the message above
-        }
-
         while(xQueueReceive(ShipPosQueue, &CurrentShipX, 0)==pdTRUE){}//If there is a value in the ShipPosQueue, continue executing
+        while(xQueueReceive(SaucerPosQueue, &CurrentSaucerX, 0)==pdTRUE) {}
 
             xRetrieveShipBulletAliveFlag(&ShipBulletOnScreenFlag);//Retrieves Bullet on Screen Flag -> Means Attacking if Bullet is Alive 
 
-            if(xSemaphoreTake(SaucerBuffer.lock, 0)==pdTRUE){
-                RelativePosDifference = (int)CurrentShipX - SaucerBuffer.saucer->x_pos; //Calculates relative position difference
+            RelativePosDifference = (int)CurrentShipX - (int)CurrentSaucerX; //Calculates relative position difference
 
-                if(RelativePosDifference>0){
-                    sprintf(buffer, "+%d", RelativePosDifference);
-                }
-                else
-                    sprintf(buffer, "-%d", -RelativePosDifference);
-
-
-                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));//Places on the transmit port the message above
-                xSemaphoreGive(SaucerBuffer.lock);
-                printf("Example Buffer: %s\n", buffer);
+            if(RelativePosDifference>0){
+                sprintf(buffer, "+%d", RelativePosDifference);
             }
+            else
+                sprintf(buffer, "-%d", -RelativePosDifference);
+
+
+            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));//Places on the transmit port the message above
 
 
             if(ShipBulletOnScreenFlag!=LastShipBulletOnScreenFlagCondition){ //Only Sends these values if there was a change between agressiveness/passiveness
@@ -2690,6 +2685,15 @@ void vTaskUDPControl(void *pvParameters)
 
                 aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer));
                 LastShipBulletOnScreenFlagCondition = ShipBulletOnScreenFlag;
+            }
+
+            if(xQueueReceive(PauseResumeAIQueue, &PauseResumeSignal, 0)==pdTRUE){ //If There is a Pause/Resume value
+                if(PauseResumeSignal==1)
+                    sprintf(buffer, "RESUME"); 
+                else
+                    sprintf(buffer, "PAUSE"); 
+
+                aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buffer, strlen(buffer)); //Places on the transmit port the message above
             }
     }
 }
@@ -3366,6 +3370,12 @@ int main(int argc, char *argv[])
         goto err_cheatsbufferlock;
     }
 
+    SaucerPosQueue = xQueueCreate(1, sizeof(unsigned short));
+    if(!SaucerPosQueue){
+        exit(EXIT_FAILURE);
+        goto err_saucerposqueue;
+    }
+
     vTaskSuspend(MainMenuTask);
     vTaskSuspend(MainPlayingGameTask);
     vTaskSuspend(PausedGameTask);
@@ -3395,6 +3405,8 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+err_saucerposqueue:
+    vSemaphoreDelete(CheatsInfoBuffer.lock);
 err_cheatsbufferlock:
     vTaskDelete(CheatsTask);
 err_cheatstask:

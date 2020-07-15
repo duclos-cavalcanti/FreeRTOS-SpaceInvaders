@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/** Game related */
 #include "creatures.h"
 #include "saucer.h"
 
@@ -57,7 +58,7 @@ unsigned char xCheckSaucerCollision(saucer_t* saucer,
 
 H_Movement_t xCheckSaucerLeftEdgeDistance(saucer_t* saucer)
 {
-    if(saucer->x_pos - SAUCER_WIDTH/2 <= 0)
+    if(saucer->x_pos <= SAUCER_WIDTH*2/3)
         return RIGHT;
     else
         return LEFT;
@@ -79,15 +80,12 @@ H_Movement_t xCheckDirectionSaucer(saucer_t* saucer, H_Movement_t Direction)
         return xCheckSaucerLeftEdgeDistance(saucer);
 }
 
-void xCheckAISaucerBorder(saucer_t* saucer, H_Movement_t CurrentDirection)
+void xCheckAISaucerBorder(saucer_t* saucer)
 {
-    H_Movement_t LastDirection = CurrentDirection;
-    H_Movement_t NewDirection =xCheckSaucerRightEdgeDistance(saucer);
-
-    if(NewDirection!=LastDirection && LastDirection==RIGHT)
-        saucer->x_pos=0+SAUCER_WIDTH/2;
-    else if(NewDirection!=LastDirection && LastDirection==LEFT)
-        saucer->x_pos=SCREEN_WIDTH - SAUCER_WIDTH/2;
+    if(saucer->x_pos + SAUCER_WIDTH/2 >= SCREEN_WIDTH)
+        saucer->x_pos=0+SAUCER_WIDTH;
+    else if(saucer->x_pos <= SAUCER_WIDTH*2/3)
+        saucer->x_pos=SCREEN_WIDTH - SAUCER_WIDTH*2/3;
 }
 void vMoveSaucerRight(saucer_t* saucer)
 {
@@ -100,7 +98,7 @@ void vMoveSaucerLeft(saucer_t* saucer)
 }
 void vMoveSaucerHorizontal(saucer_t* saucer, H_Movement_t* Direction)
 {
-    (*Direction) = xCheckDirectionSaucer(saucer, (*Direction));
+    (*Direction) = xCheckDirectionSaucer(saucer, (*Direction)); //Checks the new direction of the saucer according to its position
     if((*Direction) == RIGHT)
         vMoveSaucerRight(saucer);
     else
