@@ -1,7 +1,9 @@
+/** Basic includes */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+/** Game related */
 #include "bunkers.h"
 #include "main.h"
 #include "ship.h"
@@ -110,12 +112,12 @@ unsigned char xCheckBunkerLowSideCollision(signed short b_xpos, bunkers_t bunker
 
 unsigned char xCheckBunkersCollision(signed short b_xpos,signed short b_ypos, bunkers_t bunkers)
 {
-    if(b_ypos >= BUNKERS_LOWERLIMIT){  
-        if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos, bunkers);
+    if(b_ypos >= BUNKERS_LOWERLIMIT){  //bullet is below lower limit of bunkers
+        if(b_ypos-SHIP_BULLET_SPEED <= BUNKERS_LOWERLIMIT) return xCheckBunkerLowSideCollision(b_xpos, bunkers); //if next frame will lead to bullet being above its lower limit -> possible collision
         else return 0;
     }
-    else if(b_ypos <= BUNKERS_UPPERLIMIT){
-        if(b_ypos+SHIP_BULLET_SPEED >= BUNKERS_UPPERLIMIT) return xCheckBunkerTopSideCollision(b_xpos, bunkers);
+    else if(b_ypos <= BUNKERS_UPPERLIMIT){ //if bullet is above upper limit of bunkers
+        if(b_ypos+SHIP_BULLET_SPEED >= BUNKERS_UPPERLIMIT) return xCheckBunkerTopSideCollision(b_xpos, bunkers); //if next frame will lead to bullet being below its upper limit -> possible collision
         else return 0;
     }
     else

@@ -7,7 +7,7 @@
 #include "saucer.h"
 
 
-saucer_t* CreateSinglePlayerSaucer()
+saucer_t* CreateSaucer()
 {
     saucer_t* Saucer = calloc(1,sizeof(saucer_t));
     if(!Saucer){

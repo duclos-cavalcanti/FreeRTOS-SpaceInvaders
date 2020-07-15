@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 
+/** Game related */
 #include "TUM_Draw.h"
 #include "main.h"
 #include "utilities.h"

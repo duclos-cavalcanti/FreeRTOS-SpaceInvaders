@@ -1,7 +1,9 @@
+/** Basic includes */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+/** Game related */
 #include "ship.h"
 #include "creatures.h"
 #include "main.h"
@@ -12,7 +14,6 @@
 ship_t* CreateShip(signed short initial_x, signed short initial_y, signed short speed,
                    unsigned int ShipColor, signed short size)
 {
-
     ship_t* PlayerShip = calloc (1,sizeof(ship_t));
     bullet_t* PlayerShipBullet = calloc(1, sizeof(bullet_t));
 
@@ -80,8 +81,9 @@ unsigned char xCheckBullet2BulletCollision(signed short ship_bxpos, signed short
     signed short Creature_bullet_TOP_LIMIT = creatures_bypos + CREAT_BULLET_LENGTH;
     signed short Creature_bullet_BOTTOM_LIMIT = creatures_bypos;
 
-    if(ship_bxpos <= Creature_bullet_RIGHT_LIMIT && ship_bxpos >= Creature_bullet_LEFT_LIMIT){
-        if(ship_bypos >= Creature_bullet_TOP_LIMIT && ship_bypos <= Creature_bullet_BOTTOM_LIMIT) 
+    if(ship_bxpos <= Creature_bullet_RIGHT_LIMIT && ship_bxpos >= Creature_bullet_LEFT_LIMIT){ //If Ship bullet is within creatures bullet left and right limits
+        if(ship_bypos >= Creature_bullet_TOP_LIMIT && ship_bypos <= Creature_bullet_BOTTOM_LIMIT) //If Ship bullet is within creatures bullet top and lower limits
+
             return 1;
        else
             return 0; 

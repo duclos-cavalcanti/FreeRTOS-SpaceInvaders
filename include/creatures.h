@@ -25,7 +25,9 @@
 //Creature right screen boundary
 #define CREATURE_MIN_DIST_WALL SCREEN_WIDTH - CREATURE_WIDTH/2
 
-//Enum - Used to ID creatures 
+/**
+ * @brief Holds the index position within the array in which all creatures structs are stored.
+ */
 typedef enum creatureIDS_t{
     CreatureONE,
     CreatureTWO,
@@ -69,13 +71,18 @@ typedef enum creatureIDS_t{
     CreatureFOURTY
 }creatureIDS_t;
 
-//Enum - Used to save and toggle the last animation state of a creature's image
+/**
+ * @brief Holds the image position state of a creature, used to toggle between two values and
+ * indicate which image to be drawn by a DrawCreaturesFunction().
+ */
 typedef enum Position_t{
     Position0,
     Position1
 }Position_t;
 
-//Enum - Used to ID what difficulty level is assigned to a creature
+/**
+ * @brief Holds the difficulty level of a creature
+ */
 typedef enum classes_t{
     NONEXISTENT_CLASS,
     EASY,
@@ -83,13 +90,18 @@ typedef enum classes_t{
     HARD
 }classes_t;
 
-//Enum - Used to save and toggle the direction in which a row/creature/ship is moving, in a readable manner.
+/**
+ * @brief Holds the direction in which a row/creature/ship is moving, in a readable manner.
+ */
 typedef enum H_Movement_t{
     RIGHT,
     LEFT
 }H_Movement_t;
 
-///Struct - Creature Structure
+/**
+ * @name Creature Struct
+ * @brief The structure which contains all relevant information to a single creature
+ */
 typedef struct creature_t{
     classes_t CreatureType; //! Holds the difficulty level of the creature struct instance
     creatureIDS_t CreatureID; //! Holds this instance's ID, since there are 40 creatures

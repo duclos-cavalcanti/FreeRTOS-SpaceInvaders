@@ -407,8 +407,10 @@ void vSetShipsBufferValues()
     PlayerShip=tumDrawLoadImage("../resources/player.bmp");
     xSemaphoreTake(ShipBuffer.lock, portMAX_DELAY);
 
-        ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,PLAYERSHIP_Y_BEGIN,SHIPSPEED,
-                                    Green, SHIPSIZE);
+        ShipBuffer.Ship = CreateShip(SCREEN_WIDTH/2,PLAYERSHIP_Y_BEGIN,
+                                     SHIPSPEED,
+                                     Green, 
+                                     SHIPSIZE);
         ShipBuffer.BulletCrashed=0;
 
     xSemaphoreGive(ShipBuffer.lock);
@@ -417,7 +419,7 @@ void vSetSaucerBufferValues()
 {
 
     xSemaphoreTake(SaucerBuffer.lock, portMAX_DELAY);
-        SaucerBuffer.saucer = CreateSinglePlayerSaucer();
+        SaucerBuffer.saucer = CreateSaucer();
         vPrepareImageSaucer(&SaucerBuffer.ImageIndex);
         SaucerBuffer.saucer->Images[0]= SaucerBoss;
         SaucerBuffer.saucer->Images[1] = SaucerAIBoss;
