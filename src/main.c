@@ -197,6 +197,7 @@ typedef struct CreaturesBuffer_t{
 static CreaturesBuffer_t CreaturesBuffer = { 0 };
 
 typedef struct LevelModifiersBuffer_t{
+    unsigned short MaxNumbOfSpeedChanges;
     unsigned short NumberOfSpeedChanges;
     unsigned short SpeedChangeCount;
     TickType_t ShootingPeriod;
@@ -515,6 +516,7 @@ void vSetLevelModifiersValues()
         xSemaphoreTake(PlayerInfoBuffer.lock, portMAX_DELAY);
 
             if(PlayerInfoBuffer.Level<3){
+                LevelModifiersBuffer.MaxNumbOfSpeedChanges=6;
                 LevelModifiersBuffer.NumberOfSpeedChanges = 0;
                 LevelModifiersBuffer.SpeedChangeCount = 5 - 1 * (PlayerInfoBuffer.Level - 1);
                 LevelModifiersBuffer.MovingPeriod = 700 - 50*(PlayerInfoBuffer.Level - 1);
@@ -522,8 +524,9 @@ void vSetLevelModifiersValues()
                 LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
             }
             else {
+                LevelModifiersBuffer.MaxNumbOfSpeedChanges=6;
                 LevelModifiersBuffer.NumberOfSpeedChanges = 0;
-                LevelModifiersBuffer.SpeedChangeCount = 4;
+                LevelModifiersBuffer.SpeedChangeCount = 2;
                 LevelModifiersBuffer.MovingPeriod = 600;
                 LevelModifiersBuffer.AnimationPeriod = LevelModifiersBuffer.MovingPeriod;
                 LevelModifiersBuffer.ShootingPeriod = 2000 - 250* (PlayerInfoBuffer.Level - 1);
@@ -1227,7 +1230,7 @@ void vSpeedCreaturesControl(unsigned char* NumberOfCreaturesKilled)
         (*NumberOfCreaturesKilled)++;
 
         if((*NumberOfCreaturesKilled) >= LevelModifiersBuffer.SpeedChangeCount &&
-           LevelModifiersBuffer.NumberOfSpeedChanges < 6){ 
+           LevelModifiersBuffer.NumberOfSpeedChanges < LevelModifiersBuffer.MaxNumbOfSpeedChanges){ 
 
             LevelModifiersBuffer.NumberOfSpeedChanges++;
             LevelModifiersBuffer.AnimationPeriod-=100;
