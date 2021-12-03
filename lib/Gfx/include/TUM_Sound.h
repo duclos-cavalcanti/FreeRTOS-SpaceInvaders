@@ -62,6 +62,7 @@
     SAMPLE(g3)                                                             \
     SAMPLE(g4)                                                             \
     SAMPLE(g5)
+
 /**
  * @enum tumSound_samples_e
  * @brief Enum containing the currently loaded wav samples

@@ -1,177 +1,81 @@
-#ifndef __main_H__
-#define __main_H__
+#ifndef __MAIN_H__
+#define __MAIN_H__
 
-#define INITIAL_POINTS_THRESHOLD 1080
-//Number of points needed to gain a new life
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-/**Player Ship Dimensions related*/
-#define PLAYERSHIP_HEIGHT 10
-#define PLAYERSHIP_WIDTH 30
-#define PLAYERSHIP_Y_BEGIN SCREEN_HEIGHT*90/100
+#include <SDL2/SDL_scancode.h>
 
-/**Creature Dimensions related*/
-#define CREATURE_HEIGHT 21
-#define CREATURE_WIDTH 27
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "timers.h"
+#include "task.h"
 
-/**Bottom Wall Dimensions related*/
-#define BOTTOM_WALLTHICKNESS 3
-#define BOTTOM_WALLPOSITION SCREEN_HEIGHT*95/100
+#include "TUM_Ball.h"
+#include "TUM_Draw.h"
+#include "TUM_Font.h"
+#include "TUM_Event.h"
+#include "TUM_Sound.h"
+#include "TUM_Utils.h"
+#include "TUM_FreeRTOS_Utils.h"
+#include "TUM_Print.h"
 
-/**Animation Dimensions related*/
-#define CREATURE_SHOT_ANIMATION_W 12
-#define CREATURE_SHOT_ANIMATION_H 12
+#include "AsyncIO.h"
 
-#define SAUCER_SHOT_ANIMATION_W 12
-#define SAUCER_SHOT_ANIMATION_H 12
+#define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 
-#define WALL_SHOT_ANIMATION_W 11
-#define WALL_SHOT_ANIMATION_H 15
+typedef struct flag_buffer {
+        unsigned char flag;
+        SemaphoreHandle_t lock;
+} flag_buffer_t;
 
-/**State Machine related*/
-#define BEGIN MainMenuState
-#define STATE_DEBOUNCE_DELAY 250
-#define STATE_QUEUE_LENGTH 1
+typedef struct buttons_buffer {
+        unsigned char buttons[SDL_NUM_SCANCODES];
+        SemaphoreHandle_t lock;
+} buttons_buffer_t;
 
+typedef struct mouse_xy {
+        signed short x,y;
+} mouse_xy_t;
 
-/**
- * @brief Wrapper function used to catch errors during drawing
- * @param status integer that would indicate the drawing status of the to-be-wrapped function
- * @param msg string/char array that would indicate what type of error took place in case of one
- * @return void
- */
-void checkDraw(unsigned char status, const char *msg);
+typedef struct buttons_ex2 {
+        signed short a_num;
+        signed short b_num;
+        signed short c_num;
+        signed short d_num;
 
+        signed short a_state;
+        signed short b_state;
+        signed short c_state;
+        signed short d_state;
+} buttons_ex2_t;
 
-/**
- * @name Column IDs
- * @brief Enum used to manipulate column of creatures in a readable manner
- */
-typedef enum Columns_t{
-    Column_1,
-    Column_2,
-    Column_3,
-    Column_4,
-    Column_5,
-    Column_6,
-    Column_7,
-    Column_8
-}Columns_t;
+typedef struct buttons_ex3 {
+        signed short s_num;
+        signed short t_num;
+        signed short o_num;
 
+        signed short s_state;
+        signed short t_state;
+        signed short o_state;
+} buttons_ex3_t;
 
+typedef struct message {
+        char str[15 + 1][4];
+} message_t;
 
-/**
- * @name Row IDs
- * @brief Enum used to manipulate rows of creatures in a readable manner
- */
-typedef enum Rows_t{
-    Row_1,
-    Row_2,
-    Row_3,
-    Row_4,
-    Row_5
-}Rows_t;
+typedef struct message_buffer {
+        message_t message;
+        SemaphoreHandle_t lock;
+} message_buffer_t;
 
-
-
-/**
- * @name Game States
- * @brief Enum used to manipulate game states within the state machine task in a readable manner
- */
-typedef enum GameState_t{
-    MainMenuState,
-    SinglePlayingState,
-    MultiPlayingState,
-    NextLevelState,
-    PausedState,
-    GameOverState,
-    CheatsState,
-    ResetGameState
-}GameState_t;
+typedef struct tick_ex4 {
+        int tickNo;
+        int val;
+} tick_ex4_t;
 
 
-
-/**
- * @name Selected Menu Option in the Main Menu Task
- * @brief Enum used to manipulate and highlight wich option in the Main Menu task is being considered by the player.
- */
-typedef enum SelectedMenuOption_t{
-    SinglePlayer,
-    MultiPlayer,
-    Cheats,
-    Leave
-}SelectedMenuOption_t;
-
-
-
-/**
- * @name Possible Game Actions other than Shooting and Moving
- * @brief Enum used to manipulate and handle state machine instructions given which player outside action was chosen.
- */
-typedef enum PlayerOutsideGameActions_t{
-    NoAction,
-    PauseGameAction,
-    LostGameAction,
-    WonGameAction,
-    ResetGameAction
-}PlayerOutsideGameActions_t;
-
-/**
- * @name Selected Pause Option in the Paused Game Menu Task
- * @brief Enum used to manipulate and highlight wich option in the Paused Game Menu task is being considered by the player.
- */
-typedef enum SelectedPausedGameOption_t{
-    Resume,
-    RestartReset
-}SelectedPausedGameOption_t;
-
-
-
-/**
- * @name Selected Game Over Option in the Game Over Menu Task
- * @brief Enum used to manipulate and highlight wich option in the Game Over Menu task is being considered by the player.
- */
-typedef enum SelectedGameOverOption_t{
-    PlayAgain,
-    Quit
-}SelectedGameOverOption_t;
-
-/**
- * @name Types of Lives States/Aimation States
- * @brief Enum used to manipulate and control which animations on screen regarding the lost or gain of lives in-game.
- */
-typedef enum LivesAnimation_t{
-    LivesIntact,
-    LivesLost,
-    LivesGained
-}LivesAnimation_t;
-
-/**
- * @name Types of New Game States
- * @brief Enum used to manipulate and control which types of new games can be generated by the vPrepareGameValues function.
- */
-typedef enum TypesOfNewGames_t{
-    NewGameFromScratch,
-    NewGameNextLevel,
-    InfiniteLivesCheat,
-    ChooseStartingLevelCheat,
-    ChooseStartingScoreCheat
-}TypesOfNewGames_t;
-
-
-/**
- * @name Selected Cheat Option in the Cheats Menu Task
- * @brief Enum used to manipulate and highlight wich option in the Cheats Menu task is being considered by the player.
- */
-typedef enum SelectedCheatsOption_t{
-    InfiniteLives,
-    ChooseStartingScore,
-    ChooseStartingLevel
-}SelectedCheatsOption_t;
-
-
-/**Not Public functions, they are declared here to be switched around in the main.c*/
-void vHandleStateMachineActivation();
-unsigned char xCheckUDPInput(signed short* SaucerX);
-void vPrepareImageSaucer(unsigned short* ImageIndex);
-void vControlNewLivesAddition();
 #endif 
+

@@ -36,18 +36,6 @@
 
 #ifndef __TUM_DRAW_H__
 #define __TUM_DRAW_H__
-
-#define WINDOW_TITLE "FreeRTOS Emulator"
-
-/**
- * Sets the width (in pixels) of the screen
- */
-#define SCREEN_WIDTH 640
-/**
- * Sets the height (in pixels) of the screen
- */
-#define SCREEN_HEIGHT 480
-
 /**
  * @defgroup tum_draw TUM Drawing API
  *
@@ -60,6 +48,29 @@
  *
  * @{
  */
+
+#include "EmulatorConfig.h"
+
+/**
+ * The string that is shown on the window's status bar
+ */
+#ifndef WINDOW_TITLE
+#define WINDOW_TITLE "FreeRTOS Emulator"
+#endif //WINDOW_TITLE
+
+/**
+ * Sets the width (in pixels) of the screen
+ */
+#ifndef SCREEN_WIDTH
+#define SCREEN_WIDTH 640
+#endif //SCREEN_WIDTH
+
+/**
+ * Sets the height (in pixels) of the screen
+ */
+#ifndef SCREEN_HEIGHT
+#define SCREEN_HEIGHT 480
+#endif //SCREEN_HEIGHT
 
 /**
  * @name Hex RGB colours
@@ -95,6 +106,16 @@
 /**@}*/
 
 /**
+ * @brief Defines the direction that the animation appears on the spritesheet
+ */
+enum sprite_sequence_direction {
+    SPRITE_SEQUENCE_HORIZONTAL_POS,
+    SPRITE_SEQUENCE_HORIZONTAL_NEG,
+    SPRITE_SEQUENCY_VERTICAL_POS,
+    SPRITE_SEQUENCY_VERTICAL_NEG,
+};
+
+/**
  * @brief Holds a pixel co-ordinate
  */
 typedef struct coord {
@@ -107,6 +128,26 @@ typedef struct coord {
  * NULL handle
  */
 typedef void *image_handle_t;
+
+/**
+ * @brief Handle used to reference a loaded animation spritesheet, an invalid
+ * spritesheet will have a NULL handle
+ *
+ * Sprite sheets are loaded as images and contain many individua sprites that
+ * are cycled to make animations. Thus a sequence of frames must be defined using
+ * tumDrawAnimationAddSequence() and this must be added to an animation that
+ * has been created by passing in a loaded sprite sheet.
+ */
+typedef void *animation_handle_t;
+
+/**
+ * @brief Returns an instance of an animation;
+ *
+ * After an animation has been created and a sequence added, an instance of the
+ * sequence must be created. This allows for the same animation sequence to
+ * be run within the same frame.
+ */
+typedef void *sequence_handle_t;
 
 /**
  * @brief Returns a string error message from the TUM Draw back end
@@ -307,8 +348,12 @@ int tumDrawTriangle(coord_t *points, unsigned int colour);
  * @brief Loads an image file from disk, loaded image file can be closed using
  * tumDrawFreeLoadedImage()
  *
- * @param filename The location of the image file to be loaded relative to the
- * executing binary
+ * Resources are searched for inside the RESOURCES_DIRECTORY, specified in
+ * EmulatorConfig.h, otherwise realtive or absolute filepaths can be give.
+ * Relative paths are relative to the executed binary's location on the
+ * file system
+ *
+ * @param filename Name of the image file to be loaded
  * @return Returns a image_handle_t handle to the image
  */
 image_handle_t tumDrawLoadImage(char *filename);
@@ -318,8 +363,9 @@ image_handle_t tumDrawLoadImage(char *filename);
  * be closed using tumDrawFreeLoadedImage(). Note that scaled images have large
  * overheads compared to manually scaled images (changing image file's dimensions)
  *
- * @param filename The location of the image file to be loaded relative to the
- * executing binary
+ * See tumDrawLoadImage() for information on filenames.
+ *
+ * @param filename Name of the image file to be loaded
  * @param scale Scaling factor with which the image should be drawn
  * @return Returns a image_handle_t handle to the image
  */
@@ -437,6 +483,108 @@ int tumDrawScaledImage(char *filename, signed short x, signed short y,
 int tumDrawArrow(signed short x1, signed short y1, signed short x2,
                  signed short y2, signed short head_length,
                  unsigned char thickness, unsigned int colour);
+
+/**
+ * @brief Creates an animation object with an attached spritesheet that must be
+ * loaded prior as an image.
+ *
+ * @param spritesheet The loaded image that contains the spritesheet
+ * @param sprite_cols The number of colums in the sprite sheet
+ * @param sprite_rows The number of rows in the sprite sheet
+ * @return A handle to the created animation object
+ */
+animation_handle_t tumDrawAnimationCreate(image_handle_t spritesheet,
+        unsigned sprite_cols, unsigned sprite_rows);
+
+/**
+ * @brief Adds an animation sequence to a previously created animation
+ *
+ * An animation is the combination of a sprite sheet and one of more sequences.
+ * Sequences detail how the spritesheet should be parsed, in accordance to time,
+ * to create a desired animation. Thus after creating an animation (with an
+ * appropriate spritesheet) one or more sequences must be added to the animation
+ * in order for the animation to be able to render actual animations.
+ *
+ * @param animation Handle to the prviously created animation object
+ * @param name Ascii name to be given to the sequence. Used to reference the
+ * sequence
+ * @param start_row The row at which the start sprite can be found (0 indexed)
+ * @param start_col The col at which the start sprite can be found (0 indexed)
+ * @param sprite_step_direction Defines the direction with which the sprite
+ * frames can be found on the spritesheet
+ * @param frames The number of sprite frames that make up the animation
+ * @return 0 on success
+ */
+int tumDrawAnimationAddSequence(animation_handle_t animation, char *name,
+                                unsigned start_row, unsigned start_col,
+                                enum sprite_sequence_direction sprite_step_direction,
+                                unsigned frames);
+/**
+ * @brief Creates an instance of an animation from a loaded animation object
+ * and a sequence name of a sequence previously added to the animation object
+ *
+ * @param animation The animation object countaining the target spritesheet and
+ * animation sequence
+ * @param sequence_name Ascii string name of the sequence to be instantiated
+ * @param frame_period_ms The number of milliseconds that should transpire
+ * between sprite frames
+ * @return A handle to the instantiated animation sequence, NULL otherwise
+ */
+sequence_handle_t tumDrawAnimationSequenceInstantiate(animation_handle_t animation,
+        char *sequence_name, unsigned frame_period_ms);
+
+/**
+ * @brief Draws the target intantiated animation sequence at a given location
+ *
+ * Animation sequences update which frame to show based upon how much time has
+ * passed since they were last rendered. This is tracked incrementally and as
+ * such each call to this function should pass in the number of milliseconds that
+ * has transpired since the last call to tumDrawAnimationDrawFrame() so that
+ * the sprite frame can be selected appropriately.
+ *
+ * @param sequence Sequence instance that is to be rendered
+ * @param ms_timestep The number of milliseconds that have transpired since the
+ * last call to this function for the given animation sequence
+ * @param x The X axis location, in pixels, refernced from the top left of the
+ * sprite frame
+ * @param y The Y axis location, in pixels, refernced from the top left of the
+ * sprite frame
+ * @return 0 on success
+ */
+int tumDrawAnimationDrawFrame(sequence_handle_t sequence, unsigned ms_timestep,
+                              int x, int y);
+
+/**
+ * @brief Sets the global draw position offset's X axis value
+ *
+ * @param offset Value in pixels that all drawing should be offset on the X axis
+ * @return 0 on success
+ */
+int tumDrawSetGlobalXOffset(int offset);
+
+/**
+ * @brief Sets the global draw position offset's Y axis value
+ *
+ * @param offset Value in pixels that all drawing should be offset on the X axis
+ * @return 0 on success
+ */
+int tumDrawSetGlobalYOffset(int offset);
+
+/**
+ * @brief Retrieves a copy of the current global X axis drawing offset
+ *
+ * @param offset Refernce to the int where the value should be stored
+ * @return 0 on success
+ */
+int tumDrawGetGlobalXOffset(int *offset);
+
+/**
+ * @brief Retrieves a copy of the current global X axis drawing offset
+ *
+ * @param offset Refernce to the int where the value should be stored
+ * @return 0 on success
+ */
+int tumDrawGetGlobalYOffset(int *offset);
 
 /** @} */
 #endif

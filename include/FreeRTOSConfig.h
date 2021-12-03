@@ -66,13 +66,7 @@
 
 #include <stdint.h>
 
-
-#define configUSE_TIMERS                1
-#define configTIMER_TASK_PRIORITY       3
-#define configTIMER_QUEUE_LENGTH        10
-#define configTIMER_TASK_STACK_DEPTH    configMINIMAL_STACK_SIZE
-
-
+#define configSUPPORT_STATIC_ALLOCATION 1
 #define configUSE_PREEMPTION            1
 #define configUSE_IDLE_HOOK             1
 #define configUSE_TICK_HOOK             0
@@ -81,6 +75,8 @@
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 32 * 1024 ) )
 #define configMAX_TASK_NAME_LEN         ( 16 )
 #define configUSE_TRACE_FACILITY        1
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+#define configGENERATE_RUN_TIME_STATS   1
 #define configUSE_16_BIT_TICKS          0
 #define configIDLE_SHOULD_YIELD         1
 #define configUSE_CO_ROUTINES           1
@@ -93,6 +89,12 @@
 #define configUSE_APPLICATION_TASK_TAG  1
 #define configQUEUE_REGISTRY_SIZE       0
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY    1
+
+// Timers
+#define configUSE_TIMERS                        1
+#define configTIMER_TASK_PRIORITY               3
+#define configTIMER_QUEUE_LENGTH                10
+#define configTIMER_TASK_STACK_DEPTH            configMINIMAL_STACK_SIZE
 
 #define configMAX_PRIORITIES        ( 10 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
